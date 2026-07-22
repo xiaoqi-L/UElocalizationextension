@@ -27,6 +27,7 @@
 
 # Executables
 *.exe
+!Tools/LocalizationOverrideEditor/publish/UELocalizationTool.exe
 *.out
 *.app
 *.ipa
