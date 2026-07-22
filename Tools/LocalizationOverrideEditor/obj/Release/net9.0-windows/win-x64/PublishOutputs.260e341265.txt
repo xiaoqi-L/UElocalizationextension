@@ -1,2 +1,0 @@
-F:\UGit\localizedlanguage\Tools\LocalizationOverrideEditor\publish-patchfix\UELocalizationTool.pdb
-F:\UGit\localizedlanguage\Tools\LocalizationOverrideEditor\publish-patchfix\UELocalizationTool.exe
