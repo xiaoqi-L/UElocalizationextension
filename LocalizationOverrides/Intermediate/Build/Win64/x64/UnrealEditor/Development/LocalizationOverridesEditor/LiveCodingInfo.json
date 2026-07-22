@@ -1,0 +1,12 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.LocalizationOverridesEditor.cpp.obj": [
+			"LocalizationOverridesEditor.init.gen.cpp.obj",
+			"LocalizationOverridesGenerateCommandlet.gen.cpp.obj",
+			"PerModuleInline.gen.cpp.obj",
+			"LocalizationOverridesGenerateCommandlet.cpp.obj",
+			"LocalizationOverridesEditorModule.cpp.obj"
+		]
+	}
+}

@@ -1,0 +1,25 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\source\\localizationoverrides\\private\\localizationoverridessubsystem.cpp",
+        "ProvidedModule": "",
+        "PCH": "f:\\ugit\\localizedlanguage\\intermediate\\build\\win64\\x64\\texture\\development\\engine\\sharedpch.engine.project.valapi.valexpapi.cpp20.h.pch",
+        "Includes": [
+            "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\intermediate\\build\\win64\\x64\\unrealgame\\development\\localizationoverrides\\definitions.localizationoverrides.h",
+            "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\source\\localizationoverrides\\private\\localizationoverridessubsystem.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\pakfile\\public\\iplatformfilepak.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\containers\\directorytree.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\containers\\arrowwrapper.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\genericplatform\\genericplatformchunkinstall.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\math\\bigint.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\misc\\ienginecrypto.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\rsa\\public\\rsa.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\internationalization\\culture.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\internationalization\\polyglottextdata.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\engine\\classes\\kismet\\kismetinternationalizationlibrary.h",
+            "d:\\urealengine\\ue_5.7\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\engine\\uht\\kismetinternationalizationlibrary.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

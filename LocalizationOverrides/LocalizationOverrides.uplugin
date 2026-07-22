@@ -1,0 +1,31 @@
+{
+	"FileVersion": 3,
+	"Version": 2,
+	"VersionName": "1.1.0",
+	"FriendlyName": "Localization Overrides",
+	"Description": "Loads editable localization overrides from packaged build root JSON files.",
+	"Category": "Localization",
+	"CreatedBy": "n'space",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.7.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"SupportedTargetPlatforms": [
+		"Win64"
+	],
+	"Modules": [
+		{
+			"Name": "LocalizationOverrides",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "LocalizationOverridesEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

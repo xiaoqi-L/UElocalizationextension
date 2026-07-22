@@ -1,0 +1,31 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\source\\localizationoverrideseditor\\private\\localizationoverrideseditormodule.cpp",
+        "ProvidedModule": "",
+        "PCH": "f:\\ugit\\localizedlanguage\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.valexpapi.cpp20.h.pch",
+        "Includes": [
+            "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\localizationoverrideseditor\\definitions.localizationoverrideseditor.h",
+            "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\source\\localizationoverrides\\public\\localizationoverridesblueprintlibrary.h",
+            "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\intermediate\\build\\win64\\unrealeditor\\inc\\localizationoverrides\\uht\\localizationoverridesblueprintlibrary.generated.h",
+            "f:\\ugit\\localizedlanguage\\plugins\\localizationoverrides\\source\\localizationoverrides\\public\\localizationoverridesgenerator.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\editor\\unrealed\\public\\filehelpers.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\editor\\unrealed\\public\\packagetools.h",
+            "d:\\urealengine\\ue_5.7\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\unrealed\\uht\\packagetools.generated.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\developer\\sourcecontrol\\public\\isourcecontrolprovider.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\developer\\sourcecontrol\\public\\isourcecontrolchangelist.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\developer\\sourcecontrol\\public\\isourcecontrolchangeliststate.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\developer\\sourcecontrol\\public\\isourcecontrolstate.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\developer\\sourcecontrol\\public\\isourcecontroloperation.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\developer\\sourcecontrol\\public\\sourcecontrolresultinfo.h",
+            "d:\\urealengine\\ue_5.7\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\unrealed\\uht\\filehelpers.generated.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\slate\\public\\framework\\notifications\\notificationmanager.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\misc\\coreasynctasknotificationimpl.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\core\\public\\misc\\asynctasknotification.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\coreuobject\\public\\internationalization\\packagelocalizationutil.h",
+            "d:\\urealengine\\ue_5.7\\engine\\source\\runtime\\slate\\public\\widgets\\notifications\\snotificationlist.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

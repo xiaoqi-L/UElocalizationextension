@@ -1,0 +1,14 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.LocalizationOverrides.cpp.obj": [
+			"LocalizationOverrides.init.gen.cpp.obj",
+			"LocalizationOverridesBlueprintLibrary.gen.cpp.obj",
+			"PerModuleInline.gen.cpp.obj",
+			"LocalizationOverridesBlueprintLibrary.cpp.obj",
+			"LocalizationOverridesModule.cpp.obj",
+			"LocalizationOverridesSubsystem.cpp.obj",
+			"LocalizationOverridesGenerator.cpp.obj"
+		]
+	}
+}
