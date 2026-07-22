@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "kLk53c/zS/4=",
+  "success": true,
+  "projectFilePath": "F:\\UGit\\localizedlanguage\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Archifiction\\.nuget\\packages\\microsoft.net.illink.tasks\\9.0.12\\microsoft.net.illink.tasks.9.0.12.nupkg.sha512",
+    "C:\\Users\\Archifiction\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\9.0.12\\microsoft.netcore.app.runtime.win-x64.9.0.12.nupkg.sha512",
+    "C:\\Users\\Archifiction\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\9.0.12\\microsoft.windowsdesktop.app.runtime.win-x64.9.0.12.nupkg.sha512",
+    "C:\\Users\\Archifiction\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\9.0.12\\microsoft.aspnetcore.app.runtime.win-x64.9.0.12.nupkg.sha512"
+  ],
+  "logs": []
+}

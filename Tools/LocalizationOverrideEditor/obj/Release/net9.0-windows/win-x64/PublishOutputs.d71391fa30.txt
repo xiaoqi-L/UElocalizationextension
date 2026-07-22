@@ -1,0 +1,2 @@
+F:\UGit\localizedlanguage\Tools\LocalizationOverrideEditor\publish\UELocalizationTool.pdb
+F:\UGit\localizedlanguage\Tools\LocalizationOverrideEditor\publish\UELocalizationTool.exe
