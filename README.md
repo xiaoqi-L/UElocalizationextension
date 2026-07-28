@@ -1,72 +1,206 @@
-# LocalizationOverrides 插件
+<div align="center">
 
-`LocalizationOverrides` 是一个面向 Unreal Engine 项目的运行时文本本地化覆盖插件。它把 UE 本地化数据导出为项目根目录下可编辑的 JSON，并在游戏启动时将 JSON 注册为 Polyglot Text Data，从而允许在不重新 Cook 主包的情况下修改 `FText` 翻译。
+# LocalizationOverrides
 
-插件同时提供：
+**UE5 运行时 FText 本地化覆盖方案**
 
-- 运行时 JSON 文本覆盖；
-- 启动语言选择与蓝图切换接口；
-- UE 本地化数据到 JSON 的手动生成命令；
-- 打包时将现有 JSON 以 Non-UFS 文件复制到游戏 EXE 旁；
-- 配套的中文桌面文本编辑工具。
+打包后可编辑 JSON · 无需重 Cook 主包 · 配套桌面翻译工具
 
-> 插件只覆盖文本。模型、贴图、材质和音频仍使用 UE 原生资产本地化机制，不支持打包后通过本插件注入或替换资产。
+<br>
 
-## 适用范围
+[![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.7-0E1128?style=for-the-badge&logo=unrealengine&logoColor=white)](LocalizationOverrides/LocalizationOverrides.uplugin)
+[![Platform](https://img.shields.io/badge/Platform-Win64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](LocalizationOverrides/LocalizationOverrides.uplugin)
+[![Plugin](https://img.shields.io/badge/Plugin-v1.1.0-646CFF?style=for-the-badge)](LocalizationOverrides/LocalizationOverrides.uplugin)
+[![.NET](https://img.shields.io/badge/.NET-9-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](Tools/LocalizationOverrideEditor/)
 
-- Unreal Engine 5.x；插件二进制必须与具体引擎版本匹配。
-- 当前工程主要按 UE 5.7 构建和验证。
-- 使用 UE `FText` 的文本，包括可本地化的 UMG 文本。
-- Windows 打包目标；其他平台需要重新验证输出目录和读写权限。
+<br>
 
-普通 `FString`、Blueprint String 和写死在图片或模型中的文字不会自动获得本地化覆盖。
+[快速开始](#-快速开始) ·
+[安装](#-安装与启用) ·
+[JSON 规范](#-json-规范) ·
+[插件 API](#-localizationoverrides-插件) ·
+[桌面工具](#-uelocalizationtool-桌面工具) ·
+[FAQ](#-常见问题)
 
-## 目录结构
+</div>
 
-### 项目开发目录
+---
+
+## 简介
+
+将 Unreal Engine 本地化数据导出为项目根目录下可编辑的 **JSON**，打包后以 **Non-UFS** 文件放在游戏 EXE 旁，运行时注册为 **Polyglot Text Data**——在不重新 Cook 主包的情况下，修改已发布游戏的 `FText` 翻译。
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**本仓库包含**
+
+| 组件 | 路径 |
+|------|------|
+| UE 插件 | [`LocalizationOverrides/`](LocalizationOverrides/) |
+| 桌面工具 | [`UELocalizationTool.exe`](Tools/LocalizationOverrideEditor/publish/UELocalizationTool.exe) |
+
+</td>
+<td width="50%" valign="top">
+
+**典型场景**
+
+- 发版后 hotfix 文本翻译
+- 翻译人员无需打开 UE 编辑器
+- 运行时切换游戏语言
+- JSON 与 `.pak` 分离，便于 diff 与版本管理
+
+</td>
+</tr>
+</table>
+
+> **能力边界**
+>
+> | | |
+> | :--- | :--- |
+> | **支持** | 打包后修改 `FText` · 运行时切换 culture · JSON staging 到 EXE 旁 |
+> | **不支持** | 打包后替换模型/贴图/音频 · `FString` 自动本地化 · 打包时自动生成 JSON |
+
+---
+
+## 目录
+
+- [快速开始](#-快速开始)
+- [适用环境](#-适用环境)
+- [仓库结构](#-仓库结构)
+- [核心概念](#-核心概念)
+- [目录结构（目标项目）](#-目录结构目标项目)
+- [安装与启用](#-安装与启用)
+- [首次配置工作流](#-首次配置工作流)
+- [JSON 规范](#-json-规范)
+- [LocalizationOverrides 插件](#-localizationoverrides-插件)
+- [UELocalizationTool 桌面工具](#-uelocalizationtool-桌面工具)
+- [UE 原生资产本地化](#-ue-原生资产本地化)
+- [常见问题](#-常见问题)
+- [日志与调试](#-日志与调试)
+- [版本升级](#-版本升级)
+- [功能边界速查](#-功能边界速查)
+- [附录](#-附录)
+
+---
+
+## 快速开始
+
+```text
+① 复制插件 → ② UE 收集文本 → ③ Generate → ④ 工具编辑 → ⑤ 打包
+```
+
+| # | 操作 |
+|:-:|------|
+| 1 | 将 [`LocalizationOverrides/`](LocalizationOverrides/) 复制到 `<Project>/Plugins/LocalizationOverrides` 并启用 |
+| 2 | 在 UE 本地化控制板配置目标（如 `Game`）并完成文本收集 |
+| 3 | 控制台执行 `LocalizationOverrides.Generate`，生成 `<Project>/LocalizationOverrides/*.json` |
+| 4 | 运行 **UELocalizationTool** 编辑翻译并保存 |
+| 5 | Build 并打包（Build 自动校验 JSON 并 staging 到 EXE 旁） |
+
+---
+
+## 适用环境
+
+| 项目 | 要求 |
+|------|------|
+| Unreal Engine | 5.x（当前验证 [**5.7.0**](LocalizationOverrides/LocalizationOverrides.uplugin)） |
+| 平台 | **Win64** |
+| 文本类型 | `FText` / 可本地化 UMG |
+| 前置 | 已配置 UE Localization Dashboard |
+
+> 插件二进制须与目标 UE 版本匹配；跨版本复用旧 DLL 可能导致加载失败。
+
+---
+
+## 仓库结构
+
+```text
+UElocalizationextension/
+├── LocalizationOverrides/              # UE 插件 → 安装到目标项目 Plugins/
+│   ├── LocalizationOverrides.uplugin
+│   └── Source/
+│       ├── LocalizationOverrides/      # Runtime
+│       └── LocalizationOverridesEditor/
+├── Tools/
+│   └── LocalizationOverrideEditor/     # C# WinForms 源码
+│       └── publish/
+│           └── UELocalizationTool.exe  # 预编译工具 (~108 MB)
+└── README.md
+```
+
+这是**插件分发仓库**，不含 `.uproject`。JSON 数据属于目标项目，不在本仓库内。
+
+---
+
+## 核心概念
+
+| 概念 | 说明 |
+|------|------|
+| **项目 JSON** | 位于 `<Project>/LocalizationOverrides/`，非插件 Content |
+| **Non-UFS staging** | 打包时 JSON 复制到 EXE 旁，不进 `.pak` / IoStore |
+| **Polyglot Text Data** | 运行时向 `FTextLocalizationManager` 注册覆盖 |
+| **`nativeCulture`** | `Game.json` 源文本所属 culture |
+| **`defaultCulture`** | `languages.json` 启动默认 culture（可被 CLI 覆盖） |
+
+```mermaid
+flowchart LR
+    UELoc[UE本地化控制板] --> Generate[Generate命令]
+    Generate --> JSON[项目JSON]
+    Tool[UELocalizationTool] --> JSON
+    JSON --> Build[打包校验与staging]
+    Build --> Runtime[运行时Polyglot加载]
+```
+
+---
+
+## 目录结构（目标项目）
+
+<details>
+<summary><b>开发阶段</b></summary>
 
 ```text
 <Project>/
-├─ LocalizationOverrides/
-│  ├─ languages.json
-│  └─ Game.json
-├─ Plugins/
-│  └─ LocalizationOverrides/
-└─ <ProjectName>.uproject
+├── LocalizationOverrides/
+│   ├── languages.json
+│   └── Game.json
+├── Plugins/
+│   └── LocalizationOverrides/
+└── <ProjectName>.uproject
 ```
 
-JSON 属于项目数据，必须放在项目根目录的 `LocalizationOverrides` 中，不放在插件的 `Content` 目录中。
+</details>
 
-### 打包后目录
-
-插件通过 `RuntimeDependencies` 将现有 JSON 作为 Non-UFS 文件复制到实际游戏 EXE 旁：
+<details>
+<summary><b>打包后（Shipping）</b></summary>
 
 ```text
 <PackagedGame>/
-└─ <ProjectName>/
-   └─ Binaries/
-      └─ Win64/
-         ├─ <ProjectName>-Win64-Shipping.exe
-         └─ LocalizationOverrides/
-            ├─ languages.json
-            └─ Game.json
+└── <ProjectName>/
+   └── Binaries/
+      └── Win64/
+         ├── <ProjectName>-Win64-Shipping.exe
+         └── LocalizationOverrides/
+            ├── languages.json
+            └── Game.json
 ```
 
-这是运行时优先读取的位置。不要再在打包目录最外层手工放置第二份 `LocalizationOverrides`，否则容易造成编辑了错误副本的误判。
+</details>
 
-## 安装
+> Shipping 包**优先**读取 EXE 旁 JSON。勿在包体其他位置手工放置第二份，以免编辑错误副本。
 
-1. 将插件目录复制到：
+---
 
-   ```text
-   <Project>/Plugins/LocalizationOverrides
-   ```
+## 安装与启用
 
-2. 在项目的 `.uproject` 中启用插件，或在 UE 的“编辑 > 插件”中启用。
-3. 如果插件二进制与当前 UE 版本不匹配，关闭编辑器后重新编译插件或项目。
-4. 重新打开项目。
+**1. 复制插件**
 
-推荐在 `.uproject` 中显式声明：
+```text
+<Project>/Plugins/LocalizationOverrides
+```
+
+**2. 启用插件** — 编辑 `.uproject` 或在 UE「编辑 → 插件」中启用：
 
 ```json
 {
@@ -75,68 +209,70 @@ JSON 属于项目数据，必须放在项目根目录的 `LocalizationOverrides`
 }
 ```
 
-## 首次配置流程
+**3. 编译** — 若二进制与 UE 版本不匹配，关闭编辑器后重新编译插件或项目。
 
-1. 在 UE 的本地化控制板中创建并配置本地化目标，例如 `Game`。
-2. 设置 Native Culture，并添加需要支持的 culture，例如：
+---
 
-   ```text
-   zh-Hans
-   en
-   de
-   ja
-   ```
+## 首次配置工作流
 
-3. 执行文本收集、翻译和导出，确保项目中存在可读取的 manifest/archive 数据。
-4. 打开编辑器输出日志或控制台，执行：
+| 步骤 | 操作 | 建议角色 |
+|:----:|------|:--------:|
+| 1 | UE 本地化控制板创建目标，设置 Native Culture，添加 culture | 程序 / 策划 |
+| 2 | 文本收集、翻译，确保 manifest / archive 存在 | 策划 / 翻译 |
+| 3 | 执行 `LocalizationOverrides.Generate` 或 Commandlet | 程序 |
+| 4 | 确认生成 `languages.json` 与 `Game.json` | 程序 |
+| 5 | UELocalizationTool 编辑翻译 | 翻译 |
+| 6 | Build 并打包 | 程序 |
 
-   ```text
-   LocalizationOverrides.Generate
-   ```
+> **注意**：打开编辑器或打包时**不会**自动生成 JSON，须显式执行 Generate。
 
-5. 确认项目根目录已经生成：
+---
 
-   ```text
-   LocalizationOverrides/languages.json
-   LocalizationOverrides/Game.json
-   ```
+## JSON 规范
 
-6. 使用配套工具编辑翻译，或直接按 schema 修改 JSON。
-7. 正常 Build 并打包项目。
+### 通用要求
 
-插件不会在打开编辑器或打包前自动运行生成器。需要从 UE 本地化数据重新同步 JSON 时，必须显式执行生成命令。
+| 规则 | 值 |
+|------|-----|
+| Schema | `version: 1` |
+| 编码 | **UTF-16 LE + BOM** |
+| 空翻译 | 可省略键；运行时回退到源文本或 UE 已有结果 |
 
-## JSON 文件格式
+### `languages.json`
 
-所有 JSON 文件使用：
-
-- Schema `version`：`1`；
-- 编码：UTF-16 LE；
-- 文件头：BOM；
-- 空翻译：表示未翻译，运行时回退到源文本或 UE 已有本地化结果。
-
-### languages.json
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `version` | number | 固定 `1` |
+| `defaultCulture` | string | 启动 culture（无 CLI 时） |
+| `cultures` | string[] | 允许的 culture 列表 |
 
 ```json
 {
   "version": 1,
   "defaultCulture": "zh-Hans",
-  "cultures": [
-    "zh-Hans",
-    "en",
-    "de"
-  ]
+  "cultures": ["zh-Hans", "en", "de"]
 }
 ```
 
-字段说明：
+### `Game.json`
 
-- `version`：必须为 `1`；
-- `defaultCulture`：没有显式 UE 命令行语言时使用的启动语言；
-- `cultures`：允许使用的 culture 列表，值必须非空且不能重复；
-- `defaultCulture` 必须存在于 `cultures` 中。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `version` | number | 固定 `1` |
+| `target` | string | 固定 `"Game"` |
+| `nativeCulture` | string | 须在 `languages.json.cultures` 中 |
+| `entries` | array | 文本条目 |
 
-### Game.json
+**每条 entry：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `namespace` | string | UE 命名空间 |
+| `key` | string | UE 键 |
+| `source` | string | 源文本 |
+| `translations` | object | culture → 翻译 |
+
+> 唯一身份 = **`namespace` + `key`**，不可重复。
 
 ```json
 {
@@ -145,9 +281,9 @@ JSON 属于项目数据，必须放在项目根目录的 `LocalizationOverrides`
   "nativeCulture": "zh-Hans",
   "entries": [
     {
-      "Namespace": "UI.MainMenu",
-      "Key": "StartGame",
-      "Source": "开始游戏",
+      "namespace": "UI.MainMenu",
+      "key": "StartGame",
+      "source": "开始游戏",
       "translations": {
         "zh-Hans": "开始游戏",
         "en": "Start Game",
@@ -158,219 +294,284 @@ JSON 属于项目数据，必须放在项目根目录的 `LocalizationOverrides`
 }
 ```
 
-文本的唯一身份是 `Namespace + Key`，不是单独的 `Key`。同一文件中不能出现重复的复合身份。
+---
 
-`nativeCulture` 表示源文本所属 culture，与 `languages.json.defaultCulture` 的启动语言含义不同，不能互相替代。
+## LocalizationOverrides 插件
 
-## 启动语言优先级
+### 模块
 
-启动时按以下顺序决定最终 culture：
+| 模块 | 加载阶段 | 职责 |
+|------|:--------:|------|
+| `LocalizationOverrides` | PreDefault | culture · JSON 加载 · Polyglot · 蓝图 API |
+| `LocalizationOverridesEditor` | Default | 控制台 · Commandlet · 生成 |
 
-1. UE 显式命令行参数：`-culture`、`-language` 或 `-locale`；
-2. `languages.json.defaultCulture`；
-3. UE 系统语言。
+### 生成 JSON
 
-示例：
-
-```text
-MyGame.exe -culture=en
-```
-
-显式命令行参数优先于 JSON 默认值。
-
-## 蓝图运行时接口
-
-使用蓝图节点：
+<table>
+<tr><th>方式</th><th>命令</th></tr>
+<tr>
+<td>编辑器控制台</td>
+<td>
 
 ```text
-Set Game Culture
-├─ Culture
-├─ Save as Default Culture
-└─ Return Value
+LocalizationOverrides.Generate
 ```
 
-### 临时切换
-
-```text
-Culture = en
-Save as Default Culture = false
-```
-
-只切换当前进程的文本语言，不修改 `languages.json`。
-
-### 保存为下次启动语言
-
-```text
-Culture = en
-Save as Default Culture = true
-```
-
-验证 culture 有效后，将 `languages.json.defaultCulture` 安全更新为 `en`。下次启动且没有命令行覆盖时使用该语言。
-
-返回值为 `false` 时，检查 Output Log。常见原因包括：
-
-- culture 未在 `languages.json.cultures` 中声明；
-- JSON 格式或编码无效；
-- 文件只读或当前进程没有写权限；
-- 接口不是从 Game Thread 调用。
-
-### 关于打包后的写入权限
-
-Shipping 游戏中的 JSON 位于 EXE 旁。若游戏安装在 `Program Files` 等受保护目录，普通用户可能没有写权限，此时勾选 `Save as Default Culture` 会失败。正式产品如需可靠保存用户选择，建议把用户偏好保存在 `Saved/Config`，而不要依赖修改安装目录中的 JSON。
-
-## 桌面文本编辑工具
-
-配套程序位于：
-
-```text
-Tools/LocalizationOverrideEditor/publish/UELocalizationTool.exe
-```
-
-主要功能：
-
-- 编辑 `Game.json` 中的多语系文本；
-- 添加和删除 culture；
-- 设置 `languages.json.defaultCulture`；
-- 搜索、筛选和批量粘贴翻译；
-- 保存前进行 schema 校验；
-- 检测文件是否被其他程序修改；
-- UTF-16 LE BOM 原子保存、失败回滚，并保留最近三组备份。
-
-使用步骤：
-
-1. 启动 `UELocalizationTool.exe`；
-2. 选择包含 `LocalizationOverrides` 的项目根目录，或让工具自动定位；
-3. 编辑翻译和启动语言；
-4. 点击“保存”；
-5. 若 UE 生成器随后再次执行，应确认生成合并结果，避免把人工翻译替换为 UE archive 中的旧内容。
-
-## 无界面生成方式
-
-除编辑器控制台命令外，也可以关闭普通编辑器进程后执行 Commandlet：
+</td>
+</tr>
+<tr>
+<td>Commandlet</td>
+<td>
 
 ```bat
 UnrealEditor-Cmd.exe "<Project>.uproject" -run=LocalizationOverridesGenerate -unattended -nop4 -utf8output
 ```
 
-生成失败会返回非零退出码。多个本地化目标采用整体事务：任一目标失败时，不提交部分生成结果。
+</td>
+</tr>
+<tr>
+<td>蓝图（仅编辑器）</td>
+<td><code>Generate Localization Override Files</code></td>
+</tr>
+</table>
 
-## 打包行为
+生成器读取 `Config/Localization/*_Export.ini`，合并已有 JSON（保留无 archive 的手工 culture），原子写入。
 
-打包阶段不会自动生成或更新 JSON，只复制项目根目录中已经存在并通过校验的 `.json` 文件。
+> Generate 会从 UE archive 同步。建议 Generate 前备份，并约定「UE 同步」与「工具编辑」顺序。
 
-规则如下：
+### 运行时
 
-- 必须存在 `languages.json`；
-- 必须至少存在一个目标 JSON；
-- 文件必须是 UTF-16 LE BOM；
-- 文件必须能够解析为有效 JSON；
-- `.bak`、`.tmp` 和其他非 JSON 文件不会发布；
-- JSON 使用 `StagedFileType.NonUFS`，不会进入 `.pak`、`.utoc` 或 `.ucas`；
-- 缺少或损坏 JSON 时，项目 Build 会明确失败，防止发布不完整版本；
-- 使用旧 receipt 并跳过 Build，可能不会发现新增或删除的 JSON，修改文件集合后应重新 Build。
+**JSON 查找：**
+
+| 环境 | 优先路径 |
+|------|----------|
+| 编辑器 / Standalone | `<Project>/LocalizationOverrides/` |
+| Shipping 包 | EXE 旁 `LocalizationOverrides/` |
+
+**启动 culture 优先级：**
+
+```text
+CLI (-culture / -language / -locale)  →  languages.json.defaultCulture  →  系统语言
+```
+
+**热重载：** 运行中修改 JSON 需**重启游戏**；插件检测 MD5 变更并警告。
+
+### 蓝图 API
+
+源码：[`LocalizationOverridesBlueprintLibrary.h`](LocalizationOverrides/Source/LocalizationOverrides/Public/LocalizationOverridesBlueprintLibrary.h)
+
+| 蓝图节点 | 说明 |
+|----------|------|
+| `Reload Localization Overrides` | 重新加载 JSON |
+| `Set Game Culture` | 切换 culture；可选持久化到 `languages.json` |
+| `Get Available Cultures` | 可用 culture 列表 |
+| `Get Current Game Culture` | 当前 culture |
+| `Get Localization Overrides Directory` | JSON 目录路径 |
+| `Generate Localization Override Files` | 编辑器内生成 |
+
+<details>
+<summary><b>Set Game Culture 用法示例</b></summary>
+
+| Culture | Save as Default | 效果 |
+|---------|:---------------:|------|
+| `en` | `false` | 仅当前进程切换 |
+| `en` | `true` | 切换并写入 `defaultCulture`，下次启动生效 |
+
+返回 `false` 时查 Output Log：culture 未声明 · JSON 无效 · 目录只读 · 非 Game Thread。
+
+</details>
+
+### 打包与 Build
+
+[`LocalizationOverrides.Build.cs`](LocalizationOverrides/Source/LocalizationOverrides/LocalizationOverrides.Build.cs) 在 Game/Client/Server Build 时：
+
+- 校验 `LocalizationOverrides/` 存在且 JSON 合法（UTF-16 BOM）
+- 必须含 `languages.json` + 至少一个目标 JSON
+- 以 **Non-UFS** staging 到 `$(TargetOutputDir)/LocalizationOverrides/`
+- `.bak` / `.tmp` 不发布
+- 缺失或损坏 → **Build 失败**
+
+---
+
+## UELocalizationTool 桌面工具
+
+### 获取
+
+| 方式 | 说明 |
+|------|------|
+| **预编译** | [`publish/UELocalizationTool.exe`](Tools/LocalizationOverrideEditor/publish/UELocalizationTool.exe) |
+| **体积** | ~108 MB（.NET 9 自包含，无需安装运行时） |
+| **源码编译** | 见下方命令 |
+
+```powershell
+dotnet publish Tools\LocalizationOverrideEditor\LocalizationOverrideEditor.csproj `
+  -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true `
+  -o Tools\LocalizationOverrideEditor\publish
+```
+
+<details>
+<summary><b>小体积发布（可选）</b></summary>
+
+使用 `--self-contained false` 可将 exe 降至约 1–3 MB，但目标机须安装 [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download)。
+
+</details>
+
+### 发版目录
+
+```text
+<GameRoot>/
+├── <Game>.exe
+├── UELocalizationTool.exe          # 可选
+└── LocalizationOverrides/
+   ├── languages.json
+   └── Game.json
+```
+
+### 功能一览
+
+| 功能 | 说明 |
+|------|------|
+| 多语系编辑 | `Game.json` 表格编辑 |
+| Culture 管理 | 添加 / 删除语系 |
+| 启动语言 | 设置 `defaultCulture` |
+| 搜索筛选 | 文本搜索 · 空翻译 / 已翻译 |
+| 批量操作 | 撤销 · Excel 式粘贴 |
+| 安全保存 | UTF-16 BOM 原子写入 · 3 组 `.bak` · 失败回滚 |
+| 目录探测 | 项目根 · 打包目录 · 祖先 BFS |
+
+### 使用
+
+1. 启动 `UELocalizationTool.exe`
+2. 选择项目根或打包目录
+3. 编辑翻译 → **保存**
+4. 若后续执行 UE Generate，确认合并结果
+
+**界面：** 中/英切换 · 亮/暗主题 · 偏好存 `ui-settings.json`
+
+> 错误对话框仍为中文；仅界面 chrome 与状态栏双语。
+
+---
 
 ## UE 原生资产本地化
 
-模型、贴图和音频必须使用 UE 原生目录结构：
-
 ```text
-Content/L10N/<culture>/<原资产相对路径>
+Content/Mesh/SM_UI.uasset          ← 默认
+Content/L10N/en/Mesh/SM_UI.uasset  ← 英语变体
 ```
 
-例如：
+| | 文本 (JSON) | 资产 (L10N) |
+|---|:---:|:---:|
+| 打包后修改 | 支持 | 不支持 |
+| 切换 culture | 即时（Polyglot） | 需重载 / 重启 |
+| 修改方式 | 编辑 EXE 旁 JSON | 改 UE 项目并重 Cook |
 
-```text
-Content/Mesh/SM_UI.uasset
-Content/L10N/en/Mesh/SM_UI.uasset
-```
-
-注意：
-
-- 本地化资产必须在打包前创建并 Cook；
-- 没有对应本地化变体时，UE 自动回退到原始资产；
-- 运行中切换 culture 可以立即刷新文本，但已经加载的模型、贴图和音频通常需要重新载入关卡或重启进程；
-- 修改或新增资产版本后必须重新打包游戏，本插件不提供打包后资产补丁功能。
-
-## 运行时加载位置
-
-打包游戏优先从以下目录读取：
-
-```text
-FPlatformProcess::BaseDir()/LocalizationOverrides
-```
-
-也就是实际游戏二进制文件旁。编辑器和独立进程调试则优先使用项目根目录中的：
-
-```text
-<Project>/LocalizationOverrides
-```
-
-因此，在编辑器中修改项目 JSON 后启动独立进程，应读取项目中的最新内容；在 Shipping 包中则应修改或检查 EXE 旁的副本。
+---
 
 ## 常见问题
 
-### 执行 Generate 后提示找不到 `.manifest`
+<details>
+<summary><b>Generate 提示找不到 .manifest</b></summary>
 
-先在 UE 本地化控制板中执行文本收集并生成对应目标数据。生成器不能从不存在的 manifest/archive 创建翻译条目。
+先在 UE 本地化控制板执行文本收集，确保 `Config/Localization/` 存在 manifest / archive。
 
-### 新增 culture 后没有显示翻译
+</details>
 
-确认以下内容：
+<details>
+<summary><b>新增 culture 后翻译不显示</b></summary>
 
-1. culture 已加入 `languages.json.cultures`；
-2. `defaultCulture` 或蓝图传入值使用完全相同的 culture 名称；
-3. `Game.json.translations` 中存在该 culture 的非空翻译；
-4. 修改的是当前运行环境实际读取的 JSON；
-5. JSON 编码为 UTF-16 LE BOM；
-6. Output Log 中没有 schema、线程或文件读取错误。
+1. `languages.json.cultures` 已包含该 culture
+2. `Game.json.translations` 有非空值
+3. 修改的是当前环境实际读取的 JSON
+4. 编码为 UTF-16 LE BOM
+5. Output Log 无 schema 错误
 
-### 设置语言后文本变化，但模型或贴图没有变化
+</details>
 
-这是文本覆盖与 UE 原生资产本地化加载时机不同造成的。重新载入关卡或重启进程；并确认对应资产已经放入 `Content/L10N/<culture>` 且被 Cook。
+<details>
+<summary><b>文本变了，模型/贴图没变</b></summary>
 
-### 打包后出现两个 LocalizationOverrides
+文本由本插件覆盖；资产由 `Content/L10N/<culture>/` 加载。切换 culture 后重启或重载关卡。
 
-正确位置只有实际 Shipping EXE 旁的一份。若包体外层还存在一份，通常是旧版 AutomationTool staging handler 的缓存或旧打包配置造成的，应清理旧的 AutomationTool 模块缓存和旧输出目录后重新 Build。
+</details>
 
-### 每次生成会不会覆盖人工翻译
+<details>
+<summary><b>打包后出现两个 LocalizationOverrides</b></summary>
 
-生成器会从 UE manifest/archive 同步数据，并尽量保留没有 UE archive 的手工 culture 翻译。仍建议在生成前备份 JSON，并明确团队中“UE 数据同步”和“外部工具翻译编辑”的执行顺序。
+正确位置仅 EXE 旁一份。清理旧输出目录与 AutomationTool 缓存后重新 Build。
 
-## 日志
+</details>
 
-在 UE Output Log 中搜索：
+<details>
+<summary><b>Generate 会覆盖人工翻译吗？</b></summary>
 
-```text
-LocalizationOverrides
-LocalizationOverridesGenerator
+会从 UE archive 同步，尽量保留无 archive 的手工 culture。建议 Generate 前备份。
+
+</details>
+
+<details>
+<summary><b>工具保存失败</b></summary>
+
+常见原因：文件被占用 · 编码错误 · schema 失败 · 目录只读。见 `UELocalizationTool-startup-error.log`。
+
+</details>
+
+---
+
+## 日志与调试
+
+| 来源 | 关键词 / 文件 |
+|------|---------------|
+| UE Output Log | `LocalizationOverrides` · `LocalizationOverridesGenerator` |
+| 工具启动失败 | `UELocalizationTool-startup-error.log` |
+
+---
+
+## 版本升级
+
+- 不同 UE 小版本须重新编译插件 DLL
+- 升级后清理插件 `Binaries` / `Intermediate` 再完整编译
+- 勿删除项目 `Content` / `Config` / `LocalizationOverrides`
+- 确认包体仅 EXE 旁一份 JSON
+
+---
+
+## 功能边界速查
+
+| 功能 | 支持 |
+|------|:----:|
+| 打包后修改 `FText` 翻译 | ✅ |
+| 运行时切换文本 culture | ✅ |
+| 保存 JSON 默认启动语言 | ✅ |
+| 打包时 staging JSON 到 EXE 旁 | ✅ |
+| UE 原生资产本地化回退 | ✅ |
+| 打包前/打包时自动生成 JSON | ❌ |
+| 普通 `FString` 自动本地化 | ❌ |
+| 打包后注入/替换 FBX、PNG、WAV | ❌ |
+
+---
+
+## 附录
+
+### RunUAT 打包
+
+```powershell
+RunUAT.bat BuildCookRun -project="<Project>.uproject" -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -iostore
 ```
 
-日志会记录：
+### 源码索引
 
-- 最终 culture 及来源；
-- JSON 加载、校验和注册结果；
-- 外部文件在运行中发生变化的提示；
-- 生成目标数量、条目数量和失败原因；
-- 保存默认 culture 的失败原因。
+| 文件 | 职责 |
+|------|------|
+| [`LocalizationOverridesSubsystem.cpp`](LocalizationOverrides/Source/LocalizationOverrides/Private/LocalizationOverridesSubsystem.cpp) | 运行时加载 · Polyglot |
+| [`LocalizationOverridesGenerator.cpp`](LocalizationOverrides/Source/LocalizationOverrides/Private/LocalizationOverridesGenerator.cpp) | JSON 生成 |
+| [`LocalizationOverrides.Build.cs`](LocalizationOverrides/Source/LocalizationOverrides/LocalizationOverrides.Build.cs) | Build 校验 · staging |
+| [`Program.cs`](Tools/LocalizationOverrideEditor/Program.cs) | 桌面工具 |
 
-## 版本升级建议
+---
 
-- 不同 UE 小版本之间不要直接复用旧的插件 DLL；应使用对应引擎重新编译。
-- 升级插件后建议清理项目中该插件的 `Binaries` 和 `Intermediate`，再完整编译。
-- 不要删除项目的 `Content`、`Config`、`LocalizationOverrides` 或其他资产数据。
-- 从曾使用旧 staging handler 的版本升级时，确认包体只保留 EXE 旁的一份 JSON 目录。
+<div align="center">
 
-## 功能边界总结
+**LocalizationOverrides** · UE5 Runtime Text Localization Override
 
-| 功能 | 是否支持 |
-| --- | --- |
-| 打包后修改 `FText` 翻译 | 支持 |
-| 运行时切换文本 culture | 支持 |
-| 保存 JSON 默认启动语言 | 支持，但受目录写权限影响 |
-| 打包时复制现有 JSON | 支持 |
-| 打包前自动生成 JSON | 不支持，需手动执行 |
-| 普通 `FString` 自动本地化 | 不支持 |
-| UE 原生本地化资产回退 | 支持，由 UE 负责 |
-| 打包后注入 FBX、PNG、WAV | 不支持 |
-| 打包后替换模型、贴图、音频 | 不支持 |
-
+</div>

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -13,6 +14,8 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        EditorUiStrings.SetLanguage(EditorUiSettings.LoadLanguage());
+        EditorUiStrings.SetTheme(EditorUiSettings.LoadTheme());
         Application.ThreadException += (_, eventArgs) => ReportStartupFailure(eventArgs.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) => ReportStartupFailure(eventArgs.ExceptionObject as Exception ?? new Exception(eventArgs.ExceptionObject?.ToString()));
         try
@@ -32,7 +35,11 @@ internal static class Program
         try
         {
             File.WriteAllText(logFile, $"{DateTime.Now:O}{Environment.NewLine}{exception}");
-            MessageBox.Show($"工具启动失败。详细错误已写入：{logFile}{Environment.NewLine}{Environment.NewLine}{exception.Message}", "多语言编辑工具", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(
+                EditorUiStrings.Format("StartupFailed", logFile, exception.Message),
+                EditorUiStrings.Get("AppTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
         }
         catch
         {
@@ -43,65 +50,24 @@ internal static class Program
 
 internal sealed class MainForm : Form
 {
-    private const string AllCulturesLabel = "\u5168\u90e8";
-    private const string AllTranslationStateLabel = "\u5168\u90e8";
-    private const string MissingTranslationStateLabel = "\u7a7a\u7ffb\u8bd1";
-    private const string TranslatedStateLabel = "\u5df2\u7ffb\u8bd1";
+    private enum TranslationFilter
+    {
+        All,
+        Missing,
+        Translated
+    }
+
     private static readonly Encoding Utf16LeBom = new UnicodeEncoding(
         bigEndian: false,
         byteOrderMark: true,
         throwOnInvalidBytes: true);
-    private static readonly Dictionary<string, string> CultureDisplayNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["en"] = "\u82f1\u8bed",
-        ["en-US"] = "\u82f1\u8bed\uff08\u7f8e\u56fd\uff09",
-        ["en-GB"] = "\u82f1\u8bed\uff08\u82f1\u56fd\uff09",
-        ["zh"] = "\u4e2d\u6587",
-        ["zh-CN"] = "\u4e2d\u6587\uff08\u4e2d\u56fd\u5927\u9646\uff09",
-        ["zh-Hans"] = "\u7b80\u4f53\u4e2d\u6587",
-        ["zh-Hant"] = "\u7e41\u4f53\u4e2d\u6587",
-        ["zh-TW"] = "\u4e2d\u6587\uff08\u53f0\u6e7e\uff09",
-        ["zh-HK"] = "\u4e2d\u6587\uff08\u9999\u6e2f\uff09",
-        ["ja"] = "\u65e5\u8bed",
-        ["ko"] = "\u97e9\u8bed",
-        ["fr"] = "\u6cd5\u8bed",
-        ["fr-FR"] = "\u6cd5\u8bed\uff08\u6cd5\u56fd\uff09",
-        ["de"] = "\u5fb7\u8bed",
-        ["de-DE"] = "\u5fb7\u8bed\uff08\u5fb7\u56fd\uff09",
-        ["es"] = "\u897f\u73ed\u7259\u8bed",
-        ["es-ES"] = "\u897f\u73ed\u7259\u8bed\uff08\u897f\u73ed\u7259\uff09",
-        ["es-MX"] = "\u897f\u73ed\u7259\u8bed\uff08\u58a8\u897f\u54e5\uff09",
-        ["it"] = "\u610f\u5927\u5229\u8bed",
-        ["pt"] = "\u8461\u8404\u7259\u8bed",
-        ["pt-BR"] = "\u8461\u8404\u7259\u8bed\uff08\u5df4\u897f\uff09",
-        ["pt-PT"] = "\u8461\u8404\u7259\u8bed\uff08\u8461\u8404\u7259\uff09",
-        ["ru"] = "\u4fc4\u8bed",
-        ["pl"] = "\u6ce2\u5170\u8bed",
-        ["tr"] = "\u571f\u8033\u5176\u8bed",
-        ["nl"] = "\u8377\u5170\u8bed",
-        ["sv"] = "\u745e\u5178\u8bed",
-        ["no"] = "\u632a\u5a01\u8bed",
-        ["da"] = "\u4e39\u9ea6\u8bed",
-        ["fi"] = "\u82ac\u5170\u8bed",
-        ["ar"] = "\u963f\u62c9\u4f2f\u8bed",
-        ["he"] = "\u5e0c\u4f2f\u6765\u8bed",
-        ["hi"] = "\u5370\u5730\u8bed",
-        ["th"] = "\u6cf0\u8bed",
-        ["vi"] = "\u8d8a\u5357\u8bed",
-        ["id"] = "\u5370\u5ea6\u5c3c\u897f\u4e9a\u8bed",
-        ["ms"] = "\u9a6c\u6765\u8bed",
-        ["uk"] = "\u4e4c\u514b\u5170\u8bed",
-        ["cs"] = "\u6377\u514b\u8bed",
-        ["hu"] = "\u5308\u7259\u5229\u8bed",
-        ["ro"] = "\u7f57\u9a6c\u5c3c\u4e9a\u8bed"
-    };
 
     private readonly BindingSource _bindingSource = new();
     private readonly DataGridView _grid = new();
     private readonly TextBox _searchBox = new();
-    private readonly ComboBox _cultureBox = new();
-    private readonly ComboBox _translationStateBox = new();
-    private readonly ComboBox _defaultCultureBox = new();
+    private readonly DarkComboBox _cultureBox = new();
+    private readonly DarkComboBox _translationStateBox = new();
+    private readonly DarkComboBox _defaultCultureBox = new();
     private readonly TextBox _rootBox = new();
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
@@ -110,6 +76,16 @@ internal sealed class MainForm : Form
     private readonly Button _openButton = new();
     private readonly Button _addCultureButton = new();
     private readonly Button _deleteCultureButton = new();
+    private readonly Button _themeToggleButton = new();
+    private readonly Button _languageToggleButton = new();
+    private TableLayoutPanel _headerPanel = null!;
+    private TableLayoutPanel _rootPanel = null!;
+    private TableLayoutPanel _toolbarPanel = null!;
+    private Label _headerTitleLabel = null!;
+    private Label _rootDirectoryLabel = null!;
+    private Label _filterLanguageLabel = null!;
+    private Label _filterStateLabel = null!;
+    private Label _defaultCultureLabel = null!;
 
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -133,20 +109,26 @@ internal sealed class MainForm : Form
     private bool _hasLoadedDocument;
     private string _languagesFingerprint = "";
     private string _gameFingerprint = "";
+    private TranslationFilter _translationFilter = TranslationFilter.All;
+    private string? _cultureFilter;
+    private string? _statusMessageKey;
+    private object[] _statusMessageArgs = [];
 
     private sealed record CellUndoChange(LocalizationEntryRow Row, string Culture, string OldValue, string NewValue);
     private sealed record JsonFileSnapshot(string Text, string Fingerprint);
 
     public MainForm()
     {
-        Text = "\u591a\u8bed\u8a00\u7f16\u8f91\u5de5\u5177";
+        EditorUiStrings.SetLanguage(EditorUiSettings.LoadLanguage());
+        EditorUiStrings.SetTheme(EditorUiSettings.LoadTheme());
         Icon = LoadWindowIcon();
         Width = 1240;
         Height = 720;
-        MinimumSize = new Size(980, 520);
+        MinimumSize = new Size(1020, 520);
         StartPosition = FormStartPosition.CenterScreen;
 
         BuildLayout();
+        ApplyUiLanguage();
         SetDocumentActionsEnabled(false);
         Load += (_, _) => LoadFromDetectedRoot();
         FormClosing += MainForm_FormClosing;
@@ -167,7 +149,6 @@ internal sealed class MainForm : Form
     private void BuildLayout()
     {
         Font = new Font("Microsoft YaHei UI", 9F);
-        BackColor = Color.FromArgb(245, 247, 250);
 
         static Label CreateLabel(string text)
         {
@@ -177,56 +158,19 @@ internal sealed class MainForm : Form
                 AutoSize = true,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Margin = new Padding(0, 0, 8, 0)
+                Margin = new Padding(0, 0, 10, 0),
+                Padding = new Padding(0, 0, 4, 0)
             };
-        }
-
-        static void StyleButton(Button button, bool primary = false)
-        {
-            button.AutoSize = false;
-            button.Height = 32;
-            button.Width = 92;
-            button.Margin = new Padding(4, 0, 0, 0);
-            button.FlatStyle = FlatStyle.Flat;
-            button.UseVisualStyleBackColor = false;
-
-            if (primary)
-            {
-                button.BackColor = Color.FromArgb(37, 99, 235);
-                button.ForeColor = Color.White;
-                button.FlatAppearance.BorderSize = 0;
-            }
-            else
-            {
-                button.BackColor = Color.White;
-                button.ForeColor = Color.FromArgb(45, 55, 72);
-                button.FlatAppearance.BorderColor = Color.FromArgb(210, 216, 224);
-                button.FlatAppearance.BorderSize = 1;
-            }
         }
 
         static void StyleInput(Control control)
         {
             control.Height = 32;
-            control.Margin = new Padding(0, 0, 12, 0);
+            control.Margin = new Padding(0, 0, 16, 0);
         }
-
-        var rootPanel = new TableLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            Height = 58,
-            ColumnCount = 3,
-            RowCount = 1,
-            Padding = new Padding(16, 12, 16, 8),
-            BackColor = Color.FromArgb(245, 247, 250)
-        };
-        rootPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        rootPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        rootPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
         _rootBox.ReadOnly = false;
         _rootBox.Dock = DockStyle.Fill;
-        _rootBox.BackColor = Color.White;
         _rootBox.BorderStyle = BorderStyle.FixedSingle;
         StyleInput(_rootBox);
         _rootBox.KeyDown += (_, e) =>
@@ -238,7 +182,6 @@ internal sealed class MainForm : Form
             }
         };
 
-        _searchBox.PlaceholderText = "\u641c\u7d22\u6587\u672c";
         _searchBox.Dock = DockStyle.Fill;
         StyleInput(_searchBox);
         _searchBox.TextChanged += (_, _) => ApplyFilter();
@@ -246,14 +189,35 @@ internal sealed class MainForm : Form
         _cultureBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _cultureBox.Dock = DockStyle.Fill;
         StyleInput(_cultureBox);
-        _cultureBox.SelectedIndexChanged += (_, _) => ApplyFilter();
+        _cultureBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (_isUpdatingUi)
+            {
+                return;
+            }
+
+            _cultureFilter = _cultureBox.SelectedIndex <= 0 ? null : _cultureBox.SelectedItem as string;
+            ApplyFilter();
+        };
 
         _translationStateBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _translationStateBox.Dock = DockStyle.Fill;
         StyleInput(_translationStateBox);
-        _translationStateBox.Items.AddRange([AllTranslationStateLabel, MissingTranslationStateLabel, TranslatedStateLabel]);
-        _translationStateBox.SelectedIndex = 0;
-        _translationStateBox.SelectedIndexChanged += (_, _) => ApplyFilter();
+        _translationStateBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (_isUpdatingUi)
+            {
+                return;
+            }
+
+            _translationFilter = _translationStateBox.SelectedIndex switch
+            {
+                1 => TranslationFilter.Missing,
+                2 => TranslationFilter.Translated,
+                _ => TranslationFilter.All
+            };
+            ApplyFilter();
+        };
 
         _defaultCultureBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _defaultCultureBox.Dock = DockStyle.Fill;
@@ -262,103 +226,150 @@ internal sealed class MainForm : Form
         {
             if (!_isUpdatingUi && _defaultCultureBox.SelectedItem is string selected && selected != _languages.DefaultCulture)
             {
-                MarkDirty("\u542f\u52a8\u8bed\u8a00\u5df2\u66f4\u6539\uff0c\u70b9\u51fb\u4fdd\u5b58\u540e\u751f\u6548\u3002");
+                MarkDirty("StatusDefaultCultureChanged");
             }
         };
 
-        _openButton.Text = "\u6d4f\u89c8";
+        ConfigureHeaderButton(_themeToggleButton);
+        _themeToggleButton.Click += (_, _) => ToggleUiTheme();
+
+        ConfigureHeaderButton(_languageToggleButton);
+        _languageToggleButton.Click += (_, _) => ToggleUiLanguage();
+
         StyleButton(_openButton);
         _openButton.Click += (_, _) => ChooseRootDirectory();
 
-        _reloadButton.Text = "\u91cd\u65b0\u52a0\u8f7d";
         StyleButton(_reloadButton);
         _reloadButton.Click += (_, _) => LoadFromRoot(_rootBox.Text);
 
-        _saveButton.Text = "\u4fdd\u5b58";
         StyleButton(_saveButton, primary: true);
         _saveButton.Click += (_, _) => SaveDocuments();
 
-        _addCultureButton.Text = "\u6dfb\u52a0\u8bed\u7cfb";
         StyleButton(_addCultureButton);
         _addCultureButton.Click += (_, _) => AddCulture();
 
-        _deleteCultureButton.Text = "\u5220\u9664\u8bed\u7cfb";
         StyleButton(_deleteCultureButton);
         _deleteCultureButton.Click += (_, _) => DeleteCulture();
 
-        rootPanel.Controls.Add(CreateLabel("\u672c\u5730\u5316\u76ee\u5f55/\u9879\u76ee\u76ee\u5f55"), 0, 0);
-        rootPanel.Controls.Add(_rootBox, 1, 0);
-        rootPanel.Controls.Add(_openButton, 2, 0);
-
-        var toolbarPanel = new TableLayoutPanel
+        _headerPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 92,
+            Height = 56,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(20, 12, 20, 12)
+        };
+        _headerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _headerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        _headerTitleLabel = new Label
+        {
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 11F, FontStyle.Bold),
+            Margin = new Padding(0, 0, 16, 0)
+        };
+
+        var headerActionsPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        headerActionsPanel.Controls.Add(_themeToggleButton);
+        headerActionsPanel.Controls.Add(_languageToggleButton);
+
+        _headerPanel.Controls.Add(_headerTitleLabel, 0, 0);
+        _headerPanel.Controls.Add(headerActionsPanel, 1, 0);
+
+        _rootDirectoryLabel = CreateLabel("");
+        _rootPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 56,
+            ColumnCount = 3,
+            RowCount = 1,
+            Padding = new Padding(16, 14, 16, 10)
+        };
+        _rootPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _rootPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _rootPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _rootPanel.Controls.Add(_rootDirectoryLabel, 0, 0);
+        _rootPanel.Controls.Add(_rootBox, 1, 0);
+        _rootPanel.Controls.Add(_openButton, 2, 0);
+
+        _toolbarPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 104,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(16, 0, 16, 10),
-            BackColor = Color.FromArgb(245, 247, 250)
+            Padding = new Padding(16, 4, 16, 12)
         };
-        toolbarPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        toolbarPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-        toolbarPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        _toolbarPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _toolbarPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        _toolbarPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
         var filterPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 8,
-            RowCount = 1
+            ColumnCount = 7,
+            RowCount = 1,
+            Padding = new Padding(0, 4, 0, 4)
         };
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 136));
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 136));
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 6));
+        filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 136));
         filterPanel.Controls.Add(_searchBox, 0, 0);
-        filterPanel.Controls.Add(CreateLabel("\u8bed\u8a00"), 1, 0);
+        _filterLanguageLabel = CreateLabel("");
+        filterPanel.Controls.Add(_filterLanguageLabel, 1, 0);
         filterPanel.Controls.Add(_cultureBox, 2, 0);
-        filterPanel.Controls.Add(CreateLabel("\u72b6\u6001"), 3, 0);
+        _filterStateLabel = CreateLabel("");
+        filterPanel.Controls.Add(_filterStateLabel, 3, 0);
         filterPanel.Controls.Add(_translationStateBox, 4, 0);
-        filterPanel.Controls.Add(CreateLabel("\u542f\u52a8\u8bed\u8a00"), 5, 0);
+        _defaultCultureLabel = CreateLabel("");
+        filterPanel.Controls.Add(_defaultCultureLabel, 5, 0);
         filterPanel.Controls.Add(_defaultCultureBox, 6, 0);
 
         var actionPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            WrapContents = false,
+            Padding = new Padding(0, 4, 0, 0)
         };
         actionPanel.Controls.Add(_reloadButton);
         actionPanel.Controls.Add(_addCultureButton);
         actionPanel.Controls.Add(_deleteCultureButton);
         actionPanel.Controls.Add(_saveButton);
 
-        toolbarPanel.Controls.Add(filterPanel, 0, 0);
-        toolbarPanel.Controls.Add(actionPanel, 0, 1);
+        _toolbarPanel.Controls.Add(filterPanel, 0, 0);
+        _toolbarPanel.Controls.Add(actionPanel, 0, 1);
 
         _grid.Dock = DockStyle.Fill;
         _grid.AllowUserToAddRows = false;
         _grid.AllowUserToDeleteRows = false;
         _grid.AutoGenerateColumns = false;
         _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        _grid.BackgroundColor = Color.White;
         _grid.BorderStyle = BorderStyle.FixedSingle;
-        _grid.GridColor = Color.FromArgb(225, 230, 236);
         _grid.EnableHeadersVisualStyles = false;
-        _grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
-        _grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(30, 41, 59);
         _grid.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold);
         _grid.DefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9F);
-        _grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
-        _grid.DefaultCellStyle.SelectionForeColor = Color.FromArgb(30, 41, 59);
         _grid.RowTemplate.Height = 38;
         _grid.ColumnHeadersHeight = 40;
         _grid.SelectionMode = DataGridViewSelectionMode.CellSelect;
         _grid.MultiSelect = true;
         _grid.DataSource = _bindingSource;
+        _grid.CellPainting += Grid_CellPainting;
+        _grid.CurrentCellChanged += Grid_CurrentCellChanged;
         _grid.KeyDown += Grid_KeyDown;
         _grid.CellBeginEdit += Grid_CellBeginEdit;
         _grid.CellEndEdit += Grid_CellEndEdit;
@@ -369,7 +380,7 @@ internal sealed class MainForm : Form
                 return;
             }
             MarkDirty();
-            if ((_translationStateBox.SelectedItem as string) != AllTranslationStateLabel)
+            if (_translationFilter != TranslationFilter.All)
             {
                 ApplyFilter();
             }
@@ -383,7 +394,6 @@ internal sealed class MainForm : Form
         };
 
         _statusStrip.Dock = DockStyle.Bottom;
-        _statusStrip.BackColor = Color.White;
         _statusStrip.SizingGrip = false;
         _statusLabel.Spring = true;
         _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -391,8 +401,296 @@ internal sealed class MainForm : Form
 
         Controls.Add(_grid);
         Controls.Add(_statusStrip);
-        Controls.Add(toolbarPanel);
-        Controls.Add(rootPanel);
+        Controls.Add(_toolbarPanel);
+        Controls.Add(_rootPanel);
+        Controls.Add(_headerPanel);
+    }
+
+    private void ConfigureHeaderButton(Button button)
+    {
+        button.AutoSize = false;
+        button.Height = 32;
+        button.Width = 88;
+        button.Margin = new Padding(8, 0, 0, 0);
+        button.FlatStyle = FlatStyle.Flat;
+        button.UseVisualStyleBackColor = false;
+        button.FlatAppearance.BorderSize = 1;
+    }
+
+    private void StyleButton(Button button, bool primary = false)
+    {
+        var colors = EditorUiThemePalette.Get(EditorUiStrings.CurrentTheme);
+        button.AutoSize = false;
+        button.Height = 32;
+        button.Width = 92;
+        button.Margin = new Padding(4, 0, 0, 0);
+        button.FlatStyle = FlatStyle.Flat;
+        button.UseVisualStyleBackColor = false;
+
+        if (primary)
+        {
+            button.BackColor = colors.PrimaryButtonBackground;
+            button.ForeColor = colors.PrimaryButtonText;
+            button.FlatAppearance.BorderSize = 0;
+        }
+        else
+        {
+            button.BackColor = colors.SecondaryButtonBackground;
+            button.ForeColor = colors.SecondaryButtonText;
+            button.FlatAppearance.BorderColor = colors.SecondaryButtonBorder;
+            button.FlatAppearance.BorderSize = 1;
+        }
+    }
+
+    private void StyleHeaderButton(Button button)
+    {
+        var colors = EditorUiThemePalette.Get(EditorUiStrings.CurrentTheme);
+        button.BackColor = colors.SecondaryButtonBackground;
+        button.ForeColor = colors.SecondaryButtonText;
+        button.FlatAppearance.BorderColor = colors.SecondaryButtonBorder;
+        button.FlatAppearance.BorderSize = 1;
+    }
+
+    private void ApplyInputTheme(Control control)
+    {
+        var colors = EditorUiThemePalette.Get(EditorUiStrings.CurrentTheme);
+        control.BackColor = colors.InputBackground;
+        control.ForeColor = colors.InputText;
+
+        if (control is TextBox textBox)
+        {
+            textBox.BorderStyle = EditorUiStrings.CurrentTheme == EditorUiTheme.Dark
+                ? BorderStyle.None
+                : BorderStyle.FixedSingle;
+        }
+
+        if (control is DarkComboBox darkComboBox)
+        {
+            darkComboBox.ApplyTheme();
+        }
+    }
+
+    private void Grid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+    {
+        if (EditorUiStrings.CurrentTheme != EditorUiTheme.Dark || e.Graphics is null)
+        {
+            return;
+        }
+
+        var colors = EditorUiThemePalette.Get(EditorUiTheme.Dark);
+        var graphics = e.Graphics;
+
+        if (e.RowIndex == -1 && e.ColumnIndex == -1)
+        {
+            using var backBrush = new SolidBrush(colors.GridHeaderBackground);
+            graphics.FillRectangle(backBrush, e.CellBounds);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.RowIndex == -1 && e.ColumnIndex >= 0)
+        {
+            using var backBrush = new SolidBrush(colors.GridHeaderBackground);
+            graphics.FillRectangle(backBrush, e.CellBounds);
+
+            var text = e.FormattedValue?.ToString() ?? string.Empty;
+            TextRenderer.DrawText(
+                graphics,
+                text,
+                e.CellStyle?.Font ?? _grid.Font,
+                e.CellBounds,
+                colors.SecondaryText,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.ColumnIndex == -1 && e.RowIndex >= 0)
+        {
+            using var backBrush = new SolidBrush(colors.GridHeaderBackground);
+            graphics.FillRectangle(backBrush, e.CellBounds);
+
+            if (_grid.CurrentCell?.RowIndex == e.RowIndex)
+            {
+                DrawRowHeaderArrow(graphics, e.CellBounds, colors.PrimaryText);
+            }
+
+            e.Handled = true;
+        }
+    }
+
+    private int _rowHeaderArrowRow = -1;
+
+    private void Grid_CurrentCellChanged(object? sender, EventArgs e)
+    {
+        if (EditorUiStrings.CurrentTheme != EditorUiTheme.Dark)
+        {
+            return;
+        }
+
+        var currentRow = _grid.CurrentCell?.RowIndex ?? -1;
+        if (_rowHeaderArrowRow >= 0
+            && _rowHeaderArrowRow < _grid.Rows.Count
+            && _rowHeaderArrowRow != currentRow)
+        {
+            _grid.InvalidateRow(_rowHeaderArrowRow);
+        }
+
+        if (currentRow >= 0 && currentRow < _grid.Rows.Count)
+        {
+            _grid.InvalidateRow(currentRow);
+        }
+
+        _rowHeaderArrowRow = currentRow;
+    }
+
+    private static void DrawRowHeaderArrow(Graphics graphics, Rectangle bounds, Color color)
+    {
+        var centerY = bounds.Top + bounds.Height / 2;
+        var tipX = bounds.Left + Math.Max(6, bounds.Width / 2);
+        Point[] arrow =
+        [
+            new(tipX - 5, centerY - 5),
+            new(tipX + 1, centerY),
+            new(tipX - 5, centerY + 5)
+        ];
+        using var brush = new SolidBrush(color);
+        graphics.FillPolygon(brush, arrow);
+    }
+
+    private void ApplyGridBorderTheme()
+    {
+        var colors = EditorUiThemePalette.Get(EditorUiStrings.CurrentTheme);
+
+        if (EditorUiStrings.CurrentTheme == EditorUiTheme.Dark)
+        {
+            _grid.CellBorderStyle = DataGridViewCellBorderStyle.None;
+            _grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+            _grid.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+            _grid.AdvancedColumnHeadersBorderStyle.All = DataGridViewAdvancedCellBorderStyle.None;
+            _grid.AdvancedRowHeadersBorderStyle.All = DataGridViewAdvancedCellBorderStyle.None;
+            _grid.GridColor = colors.GridBackground;
+            return;
+        }
+
+        _grid.CellBorderStyle = DataGridViewCellBorderStyle.Single;
+        _grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+        _grid.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+        _grid.AdvancedColumnHeadersBorderStyle.All = DataGridViewAdvancedCellBorderStyle.Single;
+        _grid.AdvancedRowHeadersBorderStyle.All = DataGridViewAdvancedCellBorderStyle.Single;
+        _grid.GridColor = colors.GridLine;
+    }
+
+    private const int WmSetRedraw = 0x000B;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    private static void SetControlRedraw(Control control, bool redraw)
+    {
+        if (!control.IsHandleCreated)
+        {
+            return;
+        }
+
+        SendMessage(control.Handle, WmSetRedraw, redraw ? 1 : 0, 0);
+        if (redraw)
+        {
+            control.Invalidate(true);
+        }
+    }
+
+    private void ToggleUiTheme()
+    {
+        var nextTheme = EditorUiStrings.CurrentTheme == EditorUiTheme.Light
+            ? EditorUiTheme.Dark
+            : EditorUiTheme.Light;
+        EditorUiStrings.SetTheme(nextTheme);
+        EditorUiSettings.SaveTheme(nextTheme);
+        ApplyTheme();
+    }
+
+    private void ApplyTheme()
+    {
+        SuspendLayout();
+        _grid.SuspendLayout();
+        SetControlRedraw(this, false);
+        try
+        {
+            ApplyThemeCore();
+        }
+        finally
+        {
+            SetControlRedraw(this, true);
+            _grid.ResumeLayout(false);
+            ResumeLayout(true);
+            Refresh();
+        }
+    }
+
+    private void ApplyThemeCore()
+    {
+        var colors = EditorUiThemePalette.Get(EditorUiStrings.CurrentTheme);
+
+        BackColor = colors.FormBackground;
+
+        _headerPanel.BackColor = colors.PanelBackground;
+        _rootPanel.BackColor = colors.SurfaceBackground;
+        _toolbarPanel.BackColor = colors.SurfaceBackground;
+
+        _headerTitleLabel.ForeColor = colors.PrimaryText;
+        _rootDirectoryLabel.ForeColor = colors.SecondaryText;
+        _filterLanguageLabel.ForeColor = colors.SecondaryText;
+        _filterStateLabel.ForeColor = colors.SecondaryText;
+        _defaultCultureLabel.ForeColor = colors.SecondaryText;
+
+        ApplyInputTheme(_rootBox);
+        ApplyInputTheme(_searchBox);
+        ApplyInputTheme(_cultureBox);
+        ApplyInputTheme(_translationStateBox);
+        ApplyInputTheme(_defaultCultureBox);
+
+        StyleButton(_openButton);
+        StyleButton(_reloadButton);
+        StyleButton(_addCultureButton);
+        StyleButton(_deleteCultureButton);
+        StyleButton(_saveButton, primary: true);
+        StyleHeaderButton(_themeToggleButton);
+        StyleHeaderButton(_languageToggleButton);
+        if (EditorUiStrings.CurrentTheme == EditorUiTheme.Dark)
+        {
+            _themeToggleButton.FlatAppearance.BorderColor = colors.AccentBorder;
+        }
+
+        _themeToggleButton.Text = EditorUiStrings.GetToggleThemeLabel();
+        _languageToggleButton.Text = EditorUiStrings.Get("ToggleLanguage");
+
+        _grid.BackgroundColor = colors.GridBackground;
+        _grid.GridColor = colors.GridLine;
+        _grid.BorderStyle = EditorUiStrings.CurrentTheme == EditorUiTheme.Dark
+            ? BorderStyle.None
+            : BorderStyle.FixedSingle;
+        _grid.DefaultCellStyle.BackColor = colors.GridBackground;
+        _grid.DefaultCellStyle.ForeColor = colors.InputText;
+        _grid.DefaultCellStyle.SelectionBackColor = colors.GridSelectionBackground;
+        _grid.DefaultCellStyle.SelectionForeColor = colors.GridSelectionText;
+        _grid.AlternatingRowsDefaultCellStyle.BackColor = colors.GridAlternateBackground;
+        _grid.AlternatingRowsDefaultCellStyle.ForeColor = colors.InputText;
+        _grid.AlternatingRowsDefaultCellStyle.SelectionBackColor = colors.GridSelectionBackground;
+        _grid.AlternatingRowsDefaultCellStyle.SelectionForeColor = colors.GridSelectionText;
+        _grid.ColumnHeadersDefaultCellStyle.BackColor = colors.GridHeaderBackground;
+        _grid.ColumnHeadersDefaultCellStyle.ForeColor = colors.SecondaryText;
+        _grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = colors.GridHeaderBackground;
+        _grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = colors.SecondaryText;
+        _grid.RowHeadersDefaultCellStyle.BackColor = colors.GridHeaderBackground;
+        _grid.RowHeadersDefaultCellStyle.ForeColor = colors.SecondaryText;
+        _grid.RowHeadersDefaultCellStyle.SelectionBackColor = colors.GridHeaderBackground;
+        _grid.RowHeadersDefaultCellStyle.SelectionForeColor = colors.SecondaryText;
+        ApplyGridBorderTheme();
+        _grid.EnableHeadersVisualStyles = false;
+
+        _statusStrip.BackColor = colors.PanelBackground;
+        _statusLabel.ForeColor = colors.SecondaryText;
     }
 
     private void ConfigureGridColumns()
@@ -412,9 +710,103 @@ internal sealed class MainForm : Form
 
     private static string GetCultureHeaderText(string culture)
     {
-        return CultureDisplayNames.TryGetValue(culture, out var displayName)
-            ? $"{culture} - {displayName}"
-            : culture;
+        return $"{culture} - {EditorUiStrings.GetCultureDisplayName(culture)}";
+    }
+
+    private void ToggleUiLanguage()
+    {
+        var nextLanguage = EditorUiStrings.Current == EditorUiLanguage.Chinese
+            ? EditorUiLanguage.English
+            : EditorUiLanguage.Chinese;
+        EditorUiStrings.SetLanguage(nextLanguage);
+        EditorUiSettings.SaveLanguage(nextLanguage);
+        ApplyUiLanguage();
+    }
+
+    private void ApplyUiLanguage()
+    {
+        Text = EditorUiStrings.Get("AppTitle");
+        _headerTitleLabel.Text = EditorUiStrings.Get("AppTitle");
+        _rootDirectoryLabel.Text = EditorUiStrings.Get("RootDirectoryLabel");
+        _filterLanguageLabel.Text = EditorUiStrings.Get("FilterLanguage");
+        _filterStateLabel.Text = EditorUiStrings.Get("FilterState");
+        _defaultCultureLabel.Text = EditorUiStrings.Get("DefaultCulture");
+        _searchBox.PlaceholderText = EditorUiStrings.Get("SearchPlaceholder");
+        _openButton.Text = EditorUiStrings.Get("Browse");
+        _reloadButton.Text = EditorUiStrings.Get("Reload");
+        _saveButton.Text = EditorUiStrings.Get("Save");
+        _addCultureButton.Text = EditorUiStrings.Get("AddCulture");
+        _deleteCultureButton.Text = EditorUiStrings.Get("DeleteCulture");
+
+        RefreshFilterCombos();
+        if (_hasLoadedDocument)
+        {
+            ConfigureGridColumns();
+        }
+
+        RefreshStatusMessage();
+        ApplyTheme();
+    }
+
+    private void RefreshFilterCombos()
+    {
+        _isUpdatingUi = true;
+        try
+        {
+            _translationStateBox.Items.Clear();
+            _translationStateBox.Items.AddRange([
+                EditorUiStrings.Get("FilterAll"),
+                EditorUiStrings.Get("FilterMissing"),
+                EditorUiStrings.Get("FilterTranslated")
+            ]);
+            _translationStateBox.SelectedIndex = _translationFilter switch
+            {
+                TranslationFilter.Missing => 1,
+                TranslationFilter.Translated => 2,
+                _ => 0
+            };
+
+            var selectedCulture = _cultureFilter;
+            _cultureBox.Items.Clear();
+            _cultureBox.Items.Add(EditorUiStrings.Get("FilterAll"));
+            foreach (var culture in _cultures)
+            {
+                _cultureBox.Items.Add(culture);
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedCulture) && _cultures.Contains(selectedCulture))
+            {
+                _cultureBox.SelectedItem = selectedCulture;
+            }
+            else
+            {
+                _cultureFilter = null;
+                _cultureBox.SelectedIndex = 0;
+            }
+        }
+        finally
+        {
+            _isUpdatingUi = false;
+        }
+    }
+
+    private void SetStatusMessage(string key, params object[] args)
+    {
+        _statusMessageKey = key;
+        _statusMessageArgs = args;
+        RefreshStatusMessage();
+    }
+
+    private void RefreshStatusMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_statusMessageKey))
+        {
+            return;
+        }
+
+        _statusLabel.Text = _statusMessageArgs.Length == 0
+            ? EditorUiStrings.Get(_statusMessageKey)
+            : EditorUiStrings.Format(_statusMessageKey, _statusMessageArgs);
     }
 
     private void LoadFromDetectedRoot()
@@ -431,8 +823,8 @@ internal sealed class MainForm : Form
 
         var result = MessageBox.Show(
             this,
-            "\u5f53\u524d\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\uff0c\u786e\u5b9a\u4e0d\u4fdd\u5b58\u76f4\u63a5\u9000\u51fa\u5417\uff1f",
-            "\u786e\u8ba4\u9000\u51fa",
+            EditorUiStrings.Get("ConfirmExitMessage"),
+            EditorUiStrings.Get("ConfirmExit"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
             MessageBoxDefaultButton.Button2);
@@ -443,7 +835,7 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void MarkDirty(string? message = null)
+    private void MarkDirty(string? messageKey = null, params object[] args)
     {
         if (_isUpdatingUi || !_hasLoadedDocument)
         {
@@ -451,7 +843,14 @@ internal sealed class MainForm : Form
         }
 
         _hasUnsavedChanges = true;
-        _statusLabel.Text = message ?? "\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\u3002";
+        if (string.IsNullOrWhiteSpace(messageKey))
+        {
+            SetStatusMessage("StatusUnsaved");
+        }
+        else
+        {
+            SetStatusMessage(messageKey, args);
+        }
     }
 
     private void ClearDirty()
@@ -635,7 +1034,7 @@ internal sealed class MainForm : Form
     {
         using var dialog = new FolderBrowserDialog
         {
-            Description = "\u9009\u62e9 LocalizationOverrides \u76ee\u5f55\u3001UE \u6253\u5305\u76ee\u5f55\u6216\u9879\u76ee\u6839\u76ee\u5f55",
+            Description = EditorUiStrings.Get("ChooseDirectoryDescription"),
             UseDescriptionForTitle = true,
             SelectedPath = Directory.Exists(_overridesDirectory) ? _overridesDirectory : Directory.GetCurrentDirectory()
         };
@@ -652,8 +1051,8 @@ internal sealed class MainForm : Form
         {
             var discard = MessageBox.Show(
                 this,
-                "\u5f53\u524d\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\u3002\r\n\r\n\u662f\u5426\u653e\u5f03\u8fd9\u4e9b\u4fee\u6539\u5e76\u91cd\u65b0\u52a0\u8f7d\uff1f",
-                "\u786e\u8ba4\u91cd\u65b0\u52a0\u8f7d",
+                EditorUiStrings.Get("ConfirmReloadMessage"),
+                EditorUiStrings.Get("ConfirmReload"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
@@ -709,7 +1108,7 @@ internal sealed class MainForm : Form
                 _rootBox.Text = _overridesDirectory;
                 SetDocumentActionsEnabled(true);
                 ClearDirty();
-                _statusLabel.Text = $"\u5df2\u52a0\u8f7d {_rows.Count} \u6761\u6587\u672c\uff0c\u542f\u52a8\u8bed\u8a00\uff1a{_languages.DefaultCulture}\u3002\u8def\u5f84\uff1a{_overridesDirectory}";
+                SetStatusMessage("StatusLoaded", _rows.Count, _languages.DefaultCulture, _overridesDirectory);
             }
             finally
             {
@@ -721,14 +1120,14 @@ internal sealed class MainForm : Form
             if (!_hasLoadedDocument)
             {
                 SetDocumentActionsEnabled(false);
-                _statusLabel.Text = "\u672a\u52a0\u8f7d\u6709\u6548\u7684\u672c\u5730\u5316 JSON\u3002";
+                SetStatusMessage("StatusNoValidJson");
             }
             else
             {
                 _rootBox.Text = _overridesDirectory;
-                _statusLabel.Text = $"\u52a0\u8f7d\u5931\u8d25\uff0c\u4ecd\u4f7f\u7528\u4e0a\u4e00\u4e2a\u6709\u6548\u76ee\u5f55\uff1a{_overridesDirectory}";
+                SetStatusMessage("StatusLoadFailedKeepPrevious", _overridesDirectory);
             }
-            MessageBox.Show(this, ex.Message, "\u52a0\u8f7d\u5931\u8d25", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, ex.Message, EditorUiStrings.Get("LoadFailed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -963,8 +1362,6 @@ internal sealed class MainForm : Form
     private void ApplyFilter()
     {
         var query = _searchBox.Text.Trim();
-        var selectedCulture = _cultureBox.SelectedItem as string ?? AllCulturesLabel;
-        var selectedTranslationState = _translationStateBox.SelectedItem as string ?? AllTranslationStateLabel;
         IEnumerable<LocalizationEntryRow> filtered = _rows;
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -976,22 +1373,22 @@ internal sealed class MainForm : Form
                 row.Translations.Values.Any(value => Contains(value, query)));
         }
 
-        if (selectedCulture != AllCulturesLabel)
+        if (!string.IsNullOrWhiteSpace(_cultureFilter))
         {
-            filtered = filtered.Where(row => row.Translations.ContainsKey(selectedCulture));
+            filtered = filtered.Where(row => row.Translations.ContainsKey(_cultureFilter));
         }
 
-        if (selectedTranslationState == MissingTranslationStateLabel)
+        if (_translationFilter == TranslationFilter.Missing)
         {
-            filtered = selectedCulture == AllCulturesLabel
+            filtered = string.IsNullOrWhiteSpace(_cultureFilter)
                 ? filtered.Where(HasAnyMissingTranslation)
-                : filtered.Where(row => IsMissingTranslation(row, selectedCulture));
+                : filtered.Where(row => IsMissingTranslation(row, _cultureFilter));
         }
-        else if (selectedTranslationState == TranslatedStateLabel)
+        else if (_translationFilter == TranslationFilter.Translated)
         {
-            filtered = selectedCulture == AllCulturesLabel
+            filtered = string.IsNullOrWhiteSpace(_cultureFilter)
                 ? filtered.Where(HasAllTranslations)
-                : filtered.Where(row => !IsMissingTranslation(row, selectedCulture));
+                : filtered.Where(row => !IsMissingTranslation(row, _cultureFilter));
         }
 
         _bindingSource.DataSource = filtered.ToList();
@@ -1019,20 +1416,7 @@ internal sealed class MainForm : Form
 
     private void RefreshCultureControls()
     {
-        var selectedFilter = _cultureBox.SelectedItem as string ?? AllCulturesLabel;
         var selectedDefault = _defaultCultureBox.SelectedItem as string ?? _languages.DefaultCulture;
-
-        _cultureBox.Items.Clear();
-        _cultureBox.Items.Add(AllCulturesLabel);
-        foreach (var culture in _cultures)
-        {
-            _cultureBox.Items.Add(culture);
-        }
-        _cultureBox.SelectedItem = _cultures.Contains(selectedFilter) ? selectedFilter : AllCulturesLabel;
-        if (_cultureBox.SelectedIndex < 0)
-        {
-            _cultureBox.SelectedIndex = 0;
-        }
 
         _defaultCultureBox.Items.Clear();
         foreach (var culture in _cultures)
@@ -1040,6 +1424,8 @@ internal sealed class MainForm : Form
             _defaultCultureBox.Items.Add(culture);
         }
         _defaultCultureBox.SelectedItem = _cultures.Contains(selectedDefault) ? selectedDefault : _languages.DefaultCulture;
+
+        RefreshFilterCombos();
     }
 
     private void AddCulture()
@@ -1053,13 +1439,13 @@ internal sealed class MainForm : Form
         var culture = dialog.CultureCode.Trim();
         if (!IsValidCultureCode(culture))
         {
-            MessageBox.Show(this, "\u8bed\u7cfb\u4ee3\u7801\u53ea\u80fd\u5305\u542b\u5b57\u6bcd\u3001\u6570\u5b57\u3001\u77ed\u6a2a\u7ebf\u548c\u4e0b\u5212\u7ebf\u3002", "\u65e0\u6548\u8bed\u7cfb", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, EditorUiStrings.Get("InvalidCultureMessage"), EditorUiStrings.Get("InvalidCulture"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
         if (_cultures.Any(existing => string.Equals(existing, culture, StringComparison.OrdinalIgnoreCase)))
         {
-            MessageBox.Show(this, $"\u8bed\u7cfb '{culture}' \u5df2\u7ecf\u5b58\u5728\u3002", "\u91cd\u590d\u8bed\u7cfb", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, EditorUiStrings.Format("DuplicateCultureMessage", culture), EditorUiStrings.Get("DuplicateCulture"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
@@ -1074,19 +1460,18 @@ internal sealed class MainForm : Form
         ConfigureGridColumns();
         ApplyFilter();
         _undoStack.Clear();
-        MarkDirty($"\u5df2\u6dfb\u52a0\u8bed\u7cfb {culture}\uff0c\u70b9\u51fb\u4fdd\u5b58\u540e\u751f\u6548\u3002");
+        MarkDirty("StatusCultureAdded", culture);
     }
 
     private void DeleteCulture()
     {
         if (_cultures.Count <= 1)
         {
-            MessageBox.Show(this, "\u81f3\u5c11\u9700\u8981\u4fdd\u7559\u4e00\u4e2a\u8bed\u7cfb\uff0c\u65e0\u6cd5\u7ee7\u7eed\u5220\u9664\u3002", "\u65e0\u6cd5\u5220\u9664\u8bed\u7cfb", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, EditorUiStrings.Get("CannotDeleteLastCulture"), EditorUiStrings.Get("CannotDeleteCulture"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        var currentFilter = _cultureBox.SelectedItem as string;
-        var preferredCulture = currentFilter != AllCulturesLabel ? currentFilter : _languages.DefaultCulture;
+        var preferredCulture = !string.IsNullOrWhiteSpace(_cultureFilter) ? _cultureFilter : _languages.DefaultCulture;
         using var dialog = new DeleteCultureDialog(_cultures, preferredCulture);
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
@@ -1103,8 +1488,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                $"\u8bed\u7cfb '{culture}' \u662f Game.json \u7684 nativeCulture\uff0c\u4e0d\u80fd\u5728\u6b64\u5de5\u5177\u4e2d\u5220\u9664\u3002",
-                "\u65e0\u6cd5\u5220\u9664\u6e90\u8bed\u7cfb",
+                EditorUiStrings.Format("CannotDeleteNativeCultureMessage", culture),
+                EditorUiStrings.Get("CannotDeleteNativeCulture"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1112,8 +1497,8 @@ internal sealed class MainForm : Form
 
         var confirmation = MessageBox.Show(
             this,
-            $"\u786e\u5b9a\u8981\u5220\u9664\u8bed\u7cfb '{culture}' \u5417\uff1f\r\n\r\n\u8be5\u8bed\u7cfb\u4f1a\u4ece languages.json \u7684 cultures \u4e2d\u79fb\u9664\uff0c\u5e76\u4ece Game.json \u6bcf\u6761 translations \u4e2d\u79fb\u9664\u5bf9\u5e94\u5b57\u6bb5\u3002\r\n\u6b64\u64cd\u4f5c\u9700\u8981\u70b9\u51fb\u4fdd\u5b58\u540e\u624d\u4f1a\u5199\u5165\u6587\u4ef6\u3002",
-            "\u786e\u8ba4\u5220\u9664\u8bed\u7cfb",
+            EditorUiStrings.Format("ConfirmDeleteCultureMessage", culture),
+            EditorUiStrings.Get("ConfirmDeleteCulture"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
             MessageBoxDefaultButton.Button2);
@@ -1138,7 +1523,7 @@ internal sealed class MainForm : Form
         ConfigureGridColumns();
         ApplyFilter();
         _undoStack.Clear();
-        MarkDirty($"\u5df2\u5220\u9664\u8bed\u7cfb {culture}\uff0c\u70b9\u51fb\u4fdd\u5b58\u540e\u751f\u6548\u3002");
+        MarkDirty("StatusCultureDeleted", culture);
     }
 
     private static bool IsValidCultureCode(string culture)
@@ -1255,7 +1640,7 @@ internal sealed class MainForm : Form
         _grid.EndEdit();
         if (_undoStack.Count == 0)
         {
-            _statusLabel.Text = "\u6ca1\u6709\u53ef\u64a4\u9500\u7684\u4fee\u6539\u3002";
+            SetStatusMessage("StatusNothingToUndo");
             return;
         }
 
@@ -1274,7 +1659,7 @@ internal sealed class MainForm : Form
         }
 
         ApplyFilter();
-        MarkDirty($"\u5df2\u64a4\u9500 {batch.Count} \u4e2a\u5355\u5143\u683c\u4fee\u6539\uff0c\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\u3002");
+        MarkDirty("StatusUndone", batch.Count);
     }
 
     private void PasteClipboardIntoGrid()
@@ -1338,7 +1723,7 @@ internal sealed class MainForm : Form
             PushUndoBatch(undoChanges);
             _grid.NotifyCurrentCellDirty(true);
             _grid.EndEdit();
-            MarkDirty($"\u5df2\u7c98\u8d34 {changedCells} \u4e2a\u5355\u5143\u683c\uff0c\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\u3002");
+            MarkDirty("StatusPasted", changedCells);
         }
     }
 
@@ -1372,7 +1757,7 @@ internal sealed class MainForm : Form
             PushUndoBatch(undoChanges);
             _grid.NotifyCurrentCellDirty(true);
             _grid.EndEdit();
-            MarkDirty($"\u5df2\u7c98\u8d34 {changedCells} \u4e2a\u5355\u5143\u683c\uff0c\u6709\u672a\u4fdd\u5b58\u7684\u4fee\u6539\u3002");
+            MarkDirty("StatusPasted", changedCells);
         }
     }
 
@@ -1536,13 +1921,18 @@ internal sealed class MainForm : Form
                 pruneWarning = pruneException.Message;
             }
             ClearDirty();
-            _statusLabel.Text = pruneWarning == null
-                ? $"\u5df2\u4fdd\u5b58\uff0c\u542f\u52a8\u8bed\u8a00\uff1a{_languages.DefaultCulture}\u3002"
-                : $"\u6587\u4ef6\u5df2\u4fdd\u5b58\uff0c\u4f46\u65e7\u5907\u4efd\u88c1\u526a\u5931\u8d25\uff1a{pruneWarning}";
+            if (pruneWarning == null)
+            {
+                SetStatusMessage("StatusSaved", _languages.DefaultCulture);
+            }
+            else
+            {
+                SetStatusMessage("StatusSavedBackupPruneFailed", pruneWarning);
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "\u4fdd\u5b58\u5931\u8d25", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, ex.Message, EditorUiStrings.Get("SaveFailed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -1655,12 +2045,14 @@ internal sealed class MainForm : Form
 internal sealed class AddCultureDialog : Form
 {
     private readonly ComboBox _cultureBox = new();
+    private readonly Label _promptLabel = new();
+    private readonly Button _okButton = new();
+    private readonly Button _cancelButton = new();
 
     public string CultureCode => ExtractCultureCode(_cultureBox.Text);
 
     public AddCultureDialog()
     {
-        Text = "\u6dfb\u52a0\u8bed\u7cfb";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -1668,79 +2060,23 @@ internal sealed class AddCultureDialog : Form
         StartPosition = FormStartPosition.CenterParent;
         ClientSize = new Size(430, 158);
 
-        var label = new Label
-        {
-            Text = "\u8bed\u7cfb\u4ee3\u7801\uff08\u4f8b\u5982 ja\u3001ko\u3001fr\u3001zh-Hant\uff09",
-            AutoSize = true,
-            Location = new Point(16, 16)
-        };
+        _promptLabel.AutoSize = true;
+        _promptLabel.Location = new Point(16, 16);
 
         _cultureBox.DropDownStyle = ComboBoxStyle.DropDown;
         _cultureBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cultureBox.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cultureBox.Location = new Point(16, 48);
         _cultureBox.Width = 398;
-        _cultureBox.Items.AddRange(new object[]
-        {
-            "en - \u82f1\u8bed",
-            "en-US - \u82f1\u8bed\uff08\u7f8e\u56fd\uff09",
-            "en-GB - \u82f1\u8bed\uff08\u82f1\u56fd\uff09",
-            "zh - \u4e2d\u6587",
-            "zh-CN - \u4e2d\u6587\uff08\u4e2d\u56fd\u5927\u9646\uff09",
-            "zh-Hans - \u7b80\u4f53\u4e2d\u6587",
-            "zh-Hant - \u7e41\u4f53\u4e2d\u6587",
-            "zh-TW - \u4e2d\u6587\uff08\u53f0\u6e7e\uff09",
-            "zh-HK - \u4e2d\u6587\uff08\u9999\u6e2f\uff09",
-            "ja - \u65e5\u8bed",
-            "ko - \u97e9\u8bed",
-            "fr - \u6cd5\u8bed",
-            "fr-FR - \u6cd5\u8bed\uff08\u6cd5\u56fd\uff09",
-            "de - \u5fb7\u8bed",
-            "de-DE - \u5fb7\u8bed\uff08\u5fb7\u56fd\uff09",
-            "es - \u897f\u73ed\u7259\u8bed",
-            "es-ES - \u897f\u73ed\u7259\u8bed\uff08\u897f\u73ed\u7259\uff09",
-            "es-MX - \u897f\u73ed\u7259\u8bed\uff08\u58a8\u897f\u54e5\uff09",
-            "it - \u610f\u5927\u5229\u8bed",
-            "it-IT - \u610f\u5927\u5229\u8bed\uff08\u610f\u5927\u5229\uff09",
-            "pt - \u8461\u8404\u7259\u8bed",
-            "pt-BR - \u8461\u8404\u7259\u8bed\uff08\u5df4\u897f\uff09",
-            "pt-PT - \u8461\u8404\u7259\u8bed\uff08\u8461\u8404\u7259\uff09",
-            "ru - \u4fc4\u8bed",
-            "pl - \u6ce2\u5170\u8bed",
-            "tr - \u571f\u8033\u5176\u8bed",
-            "nl - \u8377\u5170\u8bed",
-            "sv - \u745e\u5178\u8bed",
-            "no - \u632a\u5a01\u8bed",
-            "da - \u4e39\u9ea6\u8bed",
-            "fi - \u82ac\u5170\u8bed",
-            "ar - \u963f\u62c9\u4f2f\u8bed",
-            "he - \u5e0c\u4f2f\u6765\u8bed",
-            "hi - \u5370\u5730\u8bed",
-            "th - \u6cf0\u8bed",
-            "vi - \u8d8a\u5357\u8bed",
-            "id - \u5370\u5ea6\u5c3c\u897f\u4e9a\u8bed",
-            "ms - \u9a6c\u6765\u8bed",
-            "uk - \u4e4c\u514b\u5170\u8bed",
-            "cs - \u6377\u514b\u8bed",
-            "hu - \u5308\u7259\u5229\u8bed",
-            "ro - \u7f57\u9a6c\u5c3c\u4e9a\u8bed"
-        });
+        RefreshCulturePresets();
 
-        var okButton = new Button
-        {
-            Text = "\u786e\u5b9a",
-            DialogResult = DialogResult.OK,
-            Width = 88,
-            Height = 28
-        };
+        _okButton.DialogResult = DialogResult.OK;
+        _okButton.Width = 88;
+        _okButton.Height = 28;
 
-        var cancelButton = new Button
-        {
-            Text = "\u53d6\u6d88",
-            DialogResult = DialogResult.Cancel,
-            Width = 88,
-            Height = 28
-        };
+        _cancelButton.DialogResult = DialogResult.Cancel;
+        _cancelButton.Width = 88;
+        _cancelButton.Height = 28;
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -1749,15 +2085,41 @@ internal sealed class AddCultureDialog : Form
             Size = new Size(398, 32),
             WrapContents = false
         };
-        buttonPanel.Controls.Add(cancelButton);
-        buttonPanel.Controls.Add(okButton);
+        buttonPanel.Controls.Add(_cancelButton);
+        buttonPanel.Controls.Add(_okButton);
 
-        AcceptButton = okButton;
-        CancelButton = cancelButton;
+        AcceptButton = _okButton;
+        CancelButton = _cancelButton;
 
-        Controls.Add(label);
+        Controls.Add(_promptLabel);
         Controls.Add(_cultureBox);
         Controls.Add(buttonPanel);
+
+        ApplyUiLanguage();
+    }
+
+    private void ApplyUiLanguage()
+    {
+        Text = EditorUiStrings.Get("AddCultureDialogTitle");
+        _promptLabel.Text = EditorUiStrings.Get("AddCultureDialogLabel");
+        _okButton.Text = EditorUiStrings.Get("Ok");
+        _cancelButton.Text = EditorUiStrings.Get("Cancel");
+        RefreshCulturePresets();
+    }
+
+    private void RefreshCulturePresets()
+    {
+        var selected = _cultureBox.Text;
+        _cultureBox.Items.Clear();
+        foreach (var culture in CultureDisplayHelper.PresetCultureCodes)
+        {
+            _cultureBox.Items.Add(EditorUiStrings.GetCulturePresetLabel(culture));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            _cultureBox.Text = selected;
+        }
     }
 
     private static string ExtractCultureCode(string value)
@@ -1771,12 +2133,14 @@ internal sealed class AddCultureDialog : Form
 internal sealed class DeleteCultureDialog : Form
 {
     private readonly ComboBox _cultureBox = new();
+    private readonly Label _promptLabel = new();
+    private readonly Button _okButton = new();
+    private readonly Button _cancelButton = new();
 
     public string SelectedCulture => _cultureBox.SelectedItem as string ?? "";
 
     public DeleteCultureDialog(IEnumerable<string> cultures, string? preferredCulture)
     {
-        Text = "\u5220\u9664\u8bed\u7cfb";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -1784,12 +2148,8 @@ internal sealed class DeleteCultureDialog : Form
         StartPosition = FormStartPosition.CenterParent;
         ClientSize = new Size(430, 158);
 
-        var label = new Label
-        {
-            Text = "\u9009\u62e9\u8981\u5220\u9664\u7684\u8bed\u7cfb",
-            AutoSize = true,
-            Location = new Point(16, 16)
-        };
+        _promptLabel.AutoSize = true;
+        _promptLabel.Location = new Point(16, 16);
 
         _cultureBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _cultureBox.Location = new Point(16, 48);
@@ -1808,21 +2168,13 @@ internal sealed class DeleteCultureDialog : Form
             _cultureBox.SelectedIndex = 0;
         }
 
-        var okButton = new Button
-        {
-            Text = "\u786e\u5b9a",
-            DialogResult = DialogResult.OK,
-            Width = 88,
-            Height = 28
-        };
+        _okButton.DialogResult = DialogResult.OK;
+        _okButton.Width = 88;
+        _okButton.Height = 28;
 
-        var cancelButton = new Button
-        {
-            Text = "\u53d6\u6d88",
-            DialogResult = DialogResult.Cancel,
-            Width = 88,
-            Height = 28
-        };
+        _cancelButton.DialogResult = DialogResult.Cancel;
+        _cancelButton.Width = 88;
+        _cancelButton.Height = 28;
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -1831,15 +2183,25 @@ internal sealed class DeleteCultureDialog : Form
             Size = new Size(398, 32),
             WrapContents = false
         };
-        buttonPanel.Controls.Add(cancelButton);
-        buttonPanel.Controls.Add(okButton);
+        buttonPanel.Controls.Add(_cancelButton);
+        buttonPanel.Controls.Add(_okButton);
 
-        AcceptButton = okButton;
-        CancelButton = cancelButton;
+        AcceptButton = _okButton;
+        CancelButton = _cancelButton;
 
-        Controls.Add(label);
+        Controls.Add(_promptLabel);
         Controls.Add(_cultureBox);
         Controls.Add(buttonPanel);
+
+        ApplyUiLanguage();
+    }
+
+    private void ApplyUiLanguage()
+    {
+        Text = EditorUiStrings.Get("DeleteCultureDialogTitle");
+        _promptLabel.Text = EditorUiStrings.Get("DeleteCultureDialogLabel");
+        _okButton.Text = EditorUiStrings.Get("Ok");
+        _cancelButton.Text = EditorUiStrings.Get("Cancel");
     }
 }
 

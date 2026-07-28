@@ -1,0 +1,2 @@
+E:\UE5TextProject\UElocalizationextension\Tools\LocalizationOverrideEditor\publish\UELocalizationTool.pdb
+E:\UE5TextProject\UElocalizationextension\Tools\LocalizationOverrideEditor\publish\UELocalizationTool.exe
