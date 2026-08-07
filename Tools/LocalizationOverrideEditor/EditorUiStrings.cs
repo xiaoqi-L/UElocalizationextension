@@ -141,8 +141,10 @@ internal static class EditorUiStrings
         ["StatusUnsaved"] = ("有未保存的修改。", "Unsaved changes."),
         ["StatusDefaultCultureChanged"] = ("启动语言已更改，点击保存后生效。", "Startup language changed. Click Save to apply."),
         ["StatusLoaded"] = ("已加载 {0} 条文本，启动语言：{1}。路径：{2}", "Loaded {0} entries, startup language: {1}. Path: {2}"),
+        ["StatusSelectDirectory"] = ("请输入或浏览 LocalizationOverrides / 项目 / 打包目录，然后按回车或点「重新加载」。", "Enter or browse a LocalizationOverrides / project / packaged folder, then press Enter or click Reload."),
         ["StatusNoValidJson"] = ("未加载有效的本地化 JSON。", "No valid localization JSON loaded."),
         ["StatusLoadFailedKeepPrevious"] = ("加载失败，仍使用上一个有效目录：{0}", "Load failed; still using previous directory: {0}"),
+        ["RootPathPlaceholder"] = ("输入项目根目录、打包目录或 LocalizationOverrides 路径", "Enter project root, packaged build, or LocalizationOverrides path"),
         ["StatusNothingToUndo"] = ("没有可撤销的修改。", "Nothing to undo."),
         ["StatusUndone"] = ("已撤销 {0} 个单元格修改，有未保存的修改。", "Undid {0} cell change(s). Unsaved changes remain."),
         ["StatusPasted"] = ("已粘贴 {0} 个单元格，有未保存的修改。", "Pasted {0} cell(s). Unsaved changes remain."),
@@ -185,88 +187,98 @@ internal static class EditorUiSettings
     {
         public string? UiLanguage { get; set; }
         public string? UiTheme { get; set; }
+        public string? LastRootDirectory { get; set; }
     }
 
-    public static EditorUiLanguage LoadLanguage() => LoadSettings().Language;
+    public static EditorUiLanguage LoadLanguage() => ParseLanguage(ReadDocument()?.UiLanguage);
 
-    public static EditorUiTheme LoadTheme() => LoadSettings().Theme;
+    public static EditorUiTheme LoadTheme() => ParseTheme(ReadDocument()?.UiTheme);
 
-    public static void SaveLanguage(EditorUiLanguage language) =>
-        SaveSettings(language, EditorUiStrings.CurrentTheme);
-
-    public static void SaveTheme(EditorUiTheme theme) =>
-        SaveSettings(EditorUiStrings.Current, theme);
-
-    private static (EditorUiLanguage Language, EditorUiTheme Theme) LoadSettings()
+    public static string? LoadLastRootDirectory()
     {
-        foreach (var path in GetSettingsPaths())
+        var value = ReadDocument()?.LastRootDirectory;
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    public static void SaveLanguage(EditorUiLanguage language)
+    {
+        var document = ReadDocument() ?? new SettingsDocument();
+        document.UiLanguage = language == EditorUiLanguage.English ? "en" : "zh";
+        document.UiTheme ??= EditorUiStrings.CurrentTheme == EditorUiTheme.Dark ? "dark" : "light";
+        WriteDocument(document);
+    }
+
+    public static void SaveTheme(EditorUiTheme theme)
+    {
+        var document = ReadDocument() ?? new SettingsDocument();
+        document.UiTheme = theme == EditorUiTheme.Dark ? "dark" : "light";
+        document.UiLanguage ??= EditorUiStrings.Current == EditorUiLanguage.English ? "en" : "zh";
+        WriteDocument(document);
+    }
+
+    public static void SaveLastRootDirectory(string? rootDirectory)
+    {
+        var document = ReadDocument() ?? new SettingsDocument();
+        document.LastRootDirectory = string.IsNullOrWhiteSpace(rootDirectory) ? null : rootDirectory.Trim();
+        document.UiLanguage ??= EditorUiStrings.Current == EditorUiLanguage.English ? "en" : "zh";
+        document.UiTheme ??= EditorUiStrings.CurrentTheme == EditorUiTheme.Dark ? "dark" : "light";
+        WriteDocument(document);
+    }
+
+    private static EditorUiLanguage ParseLanguage(string? value)
+    {
+        if (string.Equals(value, "en", StringComparison.OrdinalIgnoreCase))
         {
-            try
-            {
-                if (!File.Exists(path))
-                {
-                    continue;
-                }
-
-                var settings = JsonSerializer.Deserialize<SettingsDocument>(File.ReadAllText(path));
-                var language = EditorUiLanguage.Chinese;
-                if (string.Equals(settings?.UiLanguage, "en", StringComparison.OrdinalIgnoreCase))
-                {
-                    language = EditorUiLanguage.English;
-                }
-                else if (string.Equals(settings?.UiLanguage, "zh", StringComparison.OrdinalIgnoreCase))
-                {
-                    language = EditorUiLanguage.Chinese;
-                }
-
-                var theme = string.Equals(settings?.UiTheme, "dark", StringComparison.OrdinalIgnoreCase)
-                    ? EditorUiTheme.Dark
-                    : EditorUiTheme.Light;
-
-                return (language, theme);
-            }
-            catch
-            {
-            }
+            return EditorUiLanguage.English;
         }
 
-        return (EditorUiLanguage.Chinese, EditorUiTheme.Light);
+        return EditorUiLanguage.Chinese;
     }
 
-    private static void SaveSettings(EditorUiLanguage language, EditorUiTheme theme)
+    private static EditorUiTheme ParseTheme(string? value) =>
+        string.Equals(value, "dark", StringComparison.OrdinalIgnoreCase)
+            ? EditorUiTheme.Dark
+            : EditorUiTheme.Light;
+
+    private static SettingsDocument? ReadDocument()
     {
-        var json = JsonSerializer.Serialize(new SettingsDocument
+        var path = GetSettingsPath();
+        try
         {
-            UiLanguage = language == EditorUiLanguage.English ? "en" : "zh",
-            UiTheme = theme == EditorUiTheme.Dark ? "dark" : "light"
-        }, new JsonSerializerOptions { WriteIndented = true });
+            if (!File.Exists(path))
+            {
+                return null;
+            }
 
-        foreach (var path in GetSettingsPaths())
+            return JsonSerializer.Deserialize<SettingsDocument>(File.ReadAllText(path));
+        }
+        catch
         {
-            try
-            {
-                var directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrWhiteSpace(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                File.WriteAllText(path, json);
-                return;
-            }
-            catch
-            {
-            }
+            return null;
         }
     }
 
-    private static IEnumerable<string> GetSettingsPaths()
+    private static void WriteDocument(SettingsDocument document)
     {
-        yield return Path.Combine(AppContext.BaseDirectory, "ui-settings.json");
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(appData))
-            yield return Path.Combine(appData, "UELocalizationTool", "ui-settings.json");
+        var path = GetSettingsPath();
+        try
+        {
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var json = JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json);
+        }
+        catch
+        {
+        }
     }
+
+    private static string GetSettingsPath() =>
+        Path.Combine(AppContext.BaseDirectory, "ui-settings.json");
 }
 
 internal static class CultureDisplayHelper

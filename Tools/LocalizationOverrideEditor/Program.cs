@@ -77,7 +77,8 @@ internal sealed class MainForm : Form
     private readonly Button _addCultureButton = new();
     private readonly Button _deleteCultureButton = new();
     private readonly Button _themeToggleButton = new();
-    private readonly Button _languageToggleButton = new();
+    private readonly Label _uiLanguageLabel = new();
+    private readonly DarkComboBox _uiLanguageBox = new();
     private TableLayoutPanel _headerPanel = null!;
     private TableLayoutPanel _rootPanel = null!;
     private TableLayoutPanel _toolbarPanel = null!;
@@ -233,8 +234,37 @@ internal sealed class MainForm : Form
         ConfigureHeaderButton(_themeToggleButton);
         _themeToggleButton.Click += (_, _) => ToggleUiTheme();
 
-        ConfigureHeaderButton(_languageToggleButton);
-        _languageToggleButton.Click += (_, _) => ToggleUiLanguage();
+        _uiLanguageLabel.AutoSize = true;
+        _uiLanguageLabel.Text = "中/En";
+        _uiLanguageLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _uiLanguageLabel.Margin = new Padding(8, 6, 4, 0);
+        _uiLanguageLabel.Font = new Font("Microsoft YaHei UI", 9F);
+
+        _uiLanguageBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        _uiLanguageBox.Width = 88;
+        _uiLanguageBox.Margin = new Padding(0, 2, 0, 0);
+        StyleInput(_uiLanguageBox);
+        _uiLanguageBox.Items.AddRange(["中文", "English"]);
+        _uiLanguageBox.SelectedIndex = EditorUiStrings.Current == EditorUiLanguage.English ? 1 : 0;
+        _uiLanguageBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (_isUpdatingUi)
+            {
+                return;
+            }
+
+            var nextLanguage = _uiLanguageBox.SelectedIndex == 1
+                ? EditorUiLanguage.English
+                : EditorUiLanguage.Chinese;
+            if (nextLanguage == EditorUiStrings.Current)
+            {
+                return;
+            }
+
+            EditorUiStrings.SetLanguage(nextLanguage);
+            EditorUiSettings.SaveLanguage(nextLanguage);
+            ApplyUiLanguage();
+        };
 
         StyleButton(_openButton);
         _openButton.Click += (_, _) => ChooseRootDirectory();
@@ -281,7 +311,8 @@ internal sealed class MainForm : Form
             Padding = new Padding(0)
         };
         headerActionsPanel.Controls.Add(_themeToggleButton);
-        headerActionsPanel.Controls.Add(_languageToggleButton);
+        headerActionsPanel.Controls.Add(_uiLanguageLabel);
+        headerActionsPanel.Controls.Add(_uiLanguageBox);
 
         _headerPanel.Controls.Add(_headerTitleLabel, 0, 0);
         _headerPanel.Controls.Add(headerActionsPanel, 1, 0);
@@ -380,10 +411,6 @@ internal sealed class MainForm : Form
                 return;
             }
             MarkDirty();
-            if (_translationFilter != TranslationFilter.All)
-            {
-                ApplyFilter();
-            }
         };
         _grid.CurrentCellDirtyStateChanged += (_, _) =>
         {
@@ -639,6 +666,7 @@ internal sealed class MainForm : Form
         _toolbarPanel.BackColor = colors.SurfaceBackground;
 
         _headerTitleLabel.ForeColor = colors.PrimaryText;
+        _uiLanguageLabel.ForeColor = colors.SecondaryText;
         _rootDirectoryLabel.ForeColor = colors.SecondaryText;
         _filterLanguageLabel.ForeColor = colors.SecondaryText;
         _filterStateLabel.ForeColor = colors.SecondaryText;
@@ -649,6 +677,7 @@ internal sealed class MainForm : Form
         ApplyInputTheme(_cultureBox);
         ApplyInputTheme(_translationStateBox);
         ApplyInputTheme(_defaultCultureBox);
+        ApplyInputTheme(_uiLanguageBox);
 
         StyleButton(_openButton);
         StyleButton(_reloadButton);
@@ -656,14 +685,13 @@ internal sealed class MainForm : Form
         StyleButton(_deleteCultureButton);
         StyleButton(_saveButton, primary: true);
         StyleHeaderButton(_themeToggleButton);
-        StyleHeaderButton(_languageToggleButton);
         if (EditorUiStrings.CurrentTheme == EditorUiTheme.Dark)
         {
             _themeToggleButton.FlatAppearance.BorderColor = colors.AccentBorder;
         }
 
         _themeToggleButton.Text = EditorUiStrings.GetToggleThemeLabel();
-        _languageToggleButton.Text = EditorUiStrings.Get("ToggleLanguage");
+        // 「中/En」标签与下拉选项固定，不随 UI 语言切换。
 
         _grid.BackgroundColor = colors.GridBackground;
         _grid.GridColor = colors.GridLine;
@@ -713,30 +741,37 @@ internal sealed class MainForm : Form
         return $"{culture} - {EditorUiStrings.GetCultureDisplayName(culture)}";
     }
 
-    private void ToggleUiLanguage()
-    {
-        var nextLanguage = EditorUiStrings.Current == EditorUiLanguage.Chinese
-            ? EditorUiLanguage.English
-            : EditorUiLanguage.Chinese;
-        EditorUiStrings.SetLanguage(nextLanguage);
-        EditorUiSettings.SaveLanguage(nextLanguage);
-        ApplyUiLanguage();
-    }
-
     private void ApplyUiLanguage()
     {
         Text = EditorUiStrings.Get("AppTitle");
         _headerTitleLabel.Text = EditorUiStrings.Get("AppTitle");
+        _uiLanguageLabel.Text = "中/En";
         _rootDirectoryLabel.Text = EditorUiStrings.Get("RootDirectoryLabel");
         _filterLanguageLabel.Text = EditorUiStrings.Get("FilterLanguage");
         _filterStateLabel.Text = EditorUiStrings.Get("FilterState");
         _defaultCultureLabel.Text = EditorUiStrings.Get("DefaultCulture");
         _searchBox.PlaceholderText = EditorUiStrings.Get("SearchPlaceholder");
+        _rootBox.PlaceholderText = EditorUiStrings.Get("RootPathPlaceholder");
         _openButton.Text = EditorUiStrings.Get("Browse");
         _reloadButton.Text = EditorUiStrings.Get("Reload");
         _saveButton.Text = EditorUiStrings.Get("Save");
         _addCultureButton.Text = EditorUiStrings.Get("AddCulture");
         _deleteCultureButton.Text = EditorUiStrings.Get("DeleteCulture");
+
+        _isUpdatingUi = true;
+        try
+        {
+            if (_uiLanguageBox.Items.Count == 0)
+            {
+                _uiLanguageBox.Items.AddRange(["中文", "English"]);
+            }
+
+            _uiLanguageBox.SelectedIndex = EditorUiStrings.Current == EditorUiLanguage.English ? 1 : 0;
+        }
+        finally
+        {
+            _isUpdatingUi = false;
+        }
 
         RefreshFilterCombos();
         if (_hasLoadedDocument)
@@ -811,7 +846,53 @@ internal sealed class MainForm : Form
 
     private void LoadFromDetectedRoot()
     {
-        LoadFromRoot(AppContext.BaseDirectory);
+        var lastRoot = EditorUiSettings.LoadLastRootDirectory();
+        if (string.IsNullOrWhiteSpace(lastRoot))
+        {
+            ShowEmptyStartupState();
+            return;
+        }
+
+        if (!IsSavedRootPathStillValid(lastRoot))
+        {
+            EditorUiSettings.SaveLastRootDirectory("");
+            ShowEmptyStartupState();
+            return;
+        }
+
+        _rootBox.Text = lastRoot;
+        TryLoadFromRoot(lastRoot, showErrorOnFailure: false);
+    }
+
+    private void ShowEmptyStartupState()
+    {
+        _rootBox.Text = "";
+        SetDocumentActionsEnabled(false);
+        SetStatusMessage("StatusSelectDirectory");
+    }
+
+    private static bool IsSavedRootPathStillValid(string path)
+    {
+        try
+        {
+            var normalized = NormalizeUserPath(path);
+            if (string.IsNullOrWhiteSpace(normalized) || !Directory.Exists(normalized))
+            {
+                return false;
+            }
+
+            var fullPath = Path.GetFullPath(normalized);
+            if (IsValidOverridesDirectory(fullPath))
+            {
+                return true;
+            }
+
+            return IsValidOverridesDirectory(Path.Combine(fullPath, "LocalizationOverrides"));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
@@ -875,39 +956,35 @@ internal sealed class MainForm : Form
         var normalizedInput = NormalizeUserPath(inputPath);
         if (string.IsNullOrWhiteSpace(normalizedInput))
         {
-            normalizedInput = AppContext.BaseDirectory;
+            throw new DirectoryNotFoundException(
+                "\u8bf7\u8f93\u5165\u6216\u9009\u62e9 LocalizationOverrides \u76ee\u5f55\u3001\u9879\u76ee\u6839\u76ee\u5f55\u6216\u6253\u5305\u76ee\u5f55\u3002");
         }
 
         var startDirectory = GetSearchStartDirectory(normalizedInput);
-        var candidates = new List<string>();
 
-        AddCandidate(candidates, startDirectory);
-        AddCandidate(candidates, Path.Combine(startDirectory, "LocalizationOverrides"));
-
-        foreach (var ancestor in EnumerateAncestors(startDirectory))
+        if (IsValidOverridesDirectory(startDirectory))
         {
-            AddCandidate(candidates, Path.Combine(ancestor, "LocalizationOverrides"));
+            return Path.GetFullPath(startDirectory);
         }
 
-        AddPackagedCandidates(candidates, startDirectory);
-        foreach (var ancestor in EnumerateAncestors(startDirectory).Skip(1).Take(4))
+        var directChild = Path.Combine(startDirectory, "LocalizationOverrides");
+        if (IsValidOverridesDirectory(directChild))
         {
-            AddPackagedCandidates(candidates, ancestor);
+            return Path.GetFullPath(directChild);
         }
 
-        var resolved = candidates.FirstOrDefault(IsValidOverridesDirectory);
+        var resolved = EnumerateOverridesDirectories(startDirectory, maxDepth: 5)
+            .FirstOrDefault(IsValidOverridesDirectory);
         if (!string.IsNullOrWhiteSpace(resolved))
         {
             return Path.GetFullPath(resolved);
         }
 
         throw new DirectoryNotFoundException(
-            "\u672a\u627e\u5230\u6709\u6548\u7684 LocalizationOverrides \u76ee\u5f55\u3002\r\n\r\n" +
-            "\u8bf7\u8f93\u5165\u6216\u9009\u62e9\u4ee5\u4e0b\u4efb\u4e00\u8def\u5f84\uff1a\r\n" +
+            "\u672a\u5728\u8be5\u8def\u5f84\u4e0b\u627e\u5230\u5305\u542b languages.json \u4e0e Game.json \u7684 LocalizationOverrides \u76ee\u5f55\u3002\r\n\r\n" +
+            "\u8bf7\u8f93\u5165\u6216\u9009\u62e9\uff1a\r\n" +
             "- \u9879\u76ee\u6839\u76ee\u5f55\r\n" +
             "- \u6253\u5305\u6839\u76ee\u5f55\r\n" +
-            "- Windows/\u9879\u76ee\u540d/Binaries/Win64 \u76ee\u5f55\r\n" +
-            "- \u6253\u5305 exe \u6587\u4ef6\r\n" +
             "- \u76f4\u63a5\u5305\u542b languages.json \u548c Game.json \u7684 LocalizationOverrides \u76ee\u5f55");
     }
 
@@ -939,27 +1016,6 @@ internal sealed class MainForm : Form
         }
 
         throw new DirectoryNotFoundException($"\u8def\u5f84\u4e0d\u5b58\u5728\uff1a{inputPath}");
-    }
-
-    private static IEnumerable<string> EnumerateAncestors(string startDirectory)
-    {
-        var current = new DirectoryInfo(startDirectory);
-        while (current != null)
-        {
-            yield return current.FullName;
-            current = current.Parent;
-        }
-    }
-
-    private static void AddPackagedCandidates(List<string> candidates, string root)
-    {
-        AddCandidate(candidates, Path.Combine(root, "Binaries", "Win64", "LocalizationOverrides"));
-
-        foreach (var packagedCandidate in EnumerateOverridesDirectories(root, maxDepth: 5)
-            .Where(path => path.Contains($"{Path.DirectorySeparatorChar}Binaries{Path.DirectorySeparatorChar}Win64{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)))
-        {
-            AddCandidate(candidates, packagedCandidate);
-        }
     }
 
     private static IEnumerable<string> EnumerateOverridesDirectories(string root, int maxDepth)
@@ -1000,29 +1056,6 @@ internal sealed class MainForm : Form
         }
     }
 
-    private static void AddCandidate(List<string> candidates, string candidate)
-    {
-        if (string.IsNullOrWhiteSpace(candidate))
-        {
-            return;
-        }
-
-        string fullPath;
-        try
-        {
-            fullPath = Path.GetFullPath(candidate);
-        }
-        catch
-        {
-            return;
-        }
-
-        if (!candidates.Any(existing => string.Equals(existing, fullPath, StringComparison.OrdinalIgnoreCase)))
-        {
-            candidates.Add(fullPath);
-        }
-    }
-
     private static bool IsValidOverridesDirectory(string directory)
     {
         return Directory.Exists(directory)
@@ -1041,11 +1074,14 @@ internal sealed class MainForm : Form
 
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
-            LoadFromRoot(dialog.SelectedPath);
+            TryLoadFromRoot(dialog.SelectedPath, showErrorOnFailure: true);
         }
     }
 
-    private void LoadFromRoot(string rootDirectory)
+    private void LoadFromRoot(string rootDirectory) =>
+        TryLoadFromRoot(rootDirectory, showErrorOnFailure: true);
+
+    private void TryLoadFromRoot(string rootDirectory, bool showErrorOnFailure)
     {
         if (_hasLoadedDocument && _hasUnsavedChanges)
         {
@@ -1106,6 +1142,7 @@ internal sealed class MainForm : Form
                 ConfigureGridColumns();
                 ApplyFilter();
                 _rootBox.Text = _overridesDirectory;
+                EditorUiSettings.SaveLastRootDirectory(_overridesDirectory);
                 SetDocumentActionsEnabled(true);
                 ClearDirty();
                 SetStatusMessage("StatusLoaded", _rows.Count, _languages.DefaultCulture, _overridesDirectory);
@@ -1120,14 +1157,18 @@ internal sealed class MainForm : Form
             if (!_hasLoadedDocument)
             {
                 SetDocumentActionsEnabled(false);
-                SetStatusMessage("StatusNoValidJson");
+                SetStatusMessage(showErrorOnFailure ? "StatusNoValidJson" : "StatusSelectDirectory");
             }
             else
             {
                 _rootBox.Text = _overridesDirectory;
                 SetStatusMessage("StatusLoadFailedKeepPrevious", _overridesDirectory);
             }
-            MessageBox.Show(this, ex.Message, EditorUiStrings.Get("LoadFailed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+            if (showErrorOnFailure)
+            {
+                MessageBox.Show(this, ex.Message, EditorUiStrings.Get("LoadFailed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 
@@ -1391,7 +1432,16 @@ internal sealed class MainForm : Form
                 : filtered.Where(row => !IsMissingTranslation(row, _cultureFilter));
         }
 
-        _bindingSource.DataSource = filtered.ToList();
+        var wasUpdatingUi = _isUpdatingUi;
+        _isUpdatingUi = true;
+        try
+        {
+            _bindingSource.DataSource = filtered.ToList();
+        }
+        finally
+        {
+            _isUpdatingUi = wasUpdatingUi;
+        }
     }
 
     private static bool Contains(string? value, string query)

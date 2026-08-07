@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UELocalizationTool")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+47b223b26962a03f472c5e83444543f0954165e3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5f33438be1252ad134c3d37752f13d4a7301bd7b")]
 [assembly: System.Reflection.AssemblyProductAttribute("UELocalizationTool")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UELocalizationTool")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

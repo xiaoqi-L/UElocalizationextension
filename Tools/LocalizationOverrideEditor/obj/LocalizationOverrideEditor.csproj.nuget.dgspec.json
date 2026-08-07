@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "E:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj": {}
+    "e:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj": {}
   },
   "projects": {
-    "E:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj": {
+    "e:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
+        "projectUniqueName": "e:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
         "projectName": "UELocalizationTool",
-        "projectPath": "E:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
-        "packagesPath": "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\e9ae254c856dc323ae94852a52ad4184\\nuget",
-        "outputPath": "E:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\obj\\",
+        "projectPath": "e:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
+        "packagesPath": "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\4dc4bbe3be2ab573537d59418997e4cb\\nuget",
+        "outputPath": "e:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

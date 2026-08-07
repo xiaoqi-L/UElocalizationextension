@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "tkV5w1vNoLE=",
+  "dgSpecHash": "5QE6ZnGWDeQ=",
   "success": true,
-  "projectFilePath": "E:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
+  "projectFilePath": "e:\\UE5TextProject\\UElocalizationextension\\Tools\\LocalizationOverrideEditor\\LocalizationOverrideEditor.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\e9ae254c856dc323ae94852a52ad4184\\nuget\\microsoft.net.illink.tasks\\9.0.12\\microsoft.net.illink.tasks.9.0.12.nupkg.sha512",
-    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\e9ae254c856dc323ae94852a52ad4184\\nuget\\microsoft.netcore.app.runtime.win-x64\\9.0.12\\microsoft.netcore.app.runtime.win-x64.9.0.12.nupkg.sha512",
-    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\e9ae254c856dc323ae94852a52ad4184\\nuget\\microsoft.windowsdesktop.app.runtime.win-x64\\9.0.12\\microsoft.windowsdesktop.app.runtime.win-x64.9.0.12.nupkg.sha512",
-    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\e9ae254c856dc323ae94852a52ad4184\\nuget\\microsoft.aspnetcore.app.runtime.win-x64\\9.0.12\\microsoft.aspnetcore.app.runtime.win-x64.9.0.12.nupkg.sha512"
+    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\4dc4bbe3be2ab573537d59418997e4cb\\nuget\\microsoft.net.illink.tasks\\9.0.12\\microsoft.net.illink.tasks.9.0.12.nupkg.sha512",
+    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\4dc4bbe3be2ab573537d59418997e4cb\\nuget\\microsoft.netcore.app.runtime.win-x64\\9.0.12\\microsoft.netcore.app.runtime.win-x64.9.0.12.nupkg.sha512",
+    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\4dc4bbe3be2ab573537d59418997e4cb\\nuget\\microsoft.windowsdesktop.app.runtime.win-x64\\9.0.12\\microsoft.windowsdesktop.app.runtime.win-x64.9.0.12.nupkg.sha512",
+    "C:\\Users\\Archifiction\\AppData\\Local\\Temp\\cursor-sandbox-cache\\4dc4bbe3be2ab573537d59418997e4cb\\nuget\\microsoft.aspnetcore.app.runtime.win-x64\\9.0.12\\microsoft.aspnetcore.app.runtime.win-x64.9.0.12.nupkg.sha512"
   ],
   "logs": []
 }
