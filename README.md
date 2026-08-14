@@ -17,7 +17,6 @@
 
 [快速开始](#快速开始) ·
 [安装](#安装与启用) ·
-[JSON 规范](#json-规范) ·
 [插件 API](#localizationoverrides-插件) ·
 [桌面工具](#uelocalizationtool-桌面工具)
 
@@ -72,14 +71,12 @@
 - [目录结构（目标项目）](#目录结构目标项目)
 - [安装与启用](#安装与启用)
 - [首次配置工作流](#首次配置工作流)
-- [JSON 规范](#json-规范)
 - [LocalizationOverrides 插件](#localizationoverrides-插件)
 - [UELocalizationTool 桌面工具](#uelocalizationtool-桌面工具)
 - [UE 原生资产本地化](#ue-原生资产本地化)
 - [日志与调试](#日志与调试)
 - [版本升级](#版本升级)
 - [功能边界速查](#功能边界速查)
-- [附录](#附录)
 
 ---
 
@@ -219,74 +216,6 @@ flowchart LR
 | 6 | Build 并打包 | 程序 |
 
 > **注意**：打开编辑器或打包时**不会**自动生成 JSON，须显式执行 Generate。
-
----
-
-## JSON 规范
-
-### 通用要求
-
-| 规则 | 值 |
-|------|-----|
-| Schema | `version: 1` |
-| 编码 | **UTF-16 LE + BOM** |
-| 空翻译 | 可省略键；运行时回退到源文本或 UE 已有结果 |
-
-### `languages.json`
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `version` | number | 固定 `1` |
-| `defaultCulture` | string | 启动 culture（无 CLI 时） |
-| `cultures` | string[] | 允许的 culture 列表 |
-
-```json
-{
-  "version": 1,
-  "defaultCulture": "zh-Hans",
-  "cultures": ["zh-Hans", "en", "de"]
-}
-```
-
-### `Game.json`
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `version` | number | 固定 `1` |
-| `target` | string | 固定 `"Game"` |
-| `nativeCulture` | string | 须在 `languages.json.cultures` 中 |
-| `entries` | array | 文本条目 |
-
-**每条 entry：**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `namespace` | string | UE 命名空间 |
-| `key` | string | UE 键 |
-| `source` | string | 源文本 |
-| `translations` | object | culture → 翻译 |
-
-> 唯一身份 = **`namespace` + `key`**，不可重复。
-
-```json
-{
-  "version": 1,
-  "target": "Game",
-  "nativeCulture": "zh-Hans",
-  "entries": [
-    {
-      "namespace": "UI.MainMenu",
-      "key": "StartGame",
-      "source": "开始游戏",
-      "translations": {
-        "zh-Hans": "开始游戏",
-        "en": "Start Game",
-        "de": "Spiel starten"
-      }
-    }
-  ]
-}
-```
 
 ---
 
@@ -445,8 +374,6 @@ dotnet publish Tools\LocalizationOverrideEditor\LocalizationOverrideEditor.cspro
 
 > **设置持久化：** 工具的界面语言、主题、上次打开目录等属性会保存到与 `UELocalizationTool.exe` 同目录下的 `ui-settings.json` 中；修改任一属性后该文件会自动创建或更新。若该目录不可写，则仅本次会话生效。
 
-> 错误对话框仍为中文；仅界面 chrome 与状态栏双语。
-
 ---
 
 ## UE 原生资产本地化
@@ -494,25 +421,6 @@ Content/L10N/en/Mesh/SM_UI.uasset  ← 英语变体
 | 打包前/打包时自动生成 JSON | ❌ |
 | 普通 `FString` 自动本地化 | ❌ |
 | 打包后注入/替换 FBX、PNG、WAV | ❌ |
-
----
-
-## 附录
-
-### RunUAT 打包
-
-```powershell
-RunUAT.bat BuildCookRun -project="<Project>.uproject" -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -iostore
-```
-
-### 源码索引
-
-| 文件 | 职责 |
-|------|------|
-| [`LocalizationOverridesSubsystem.cpp`](LocalizationOverrides/Source/LocalizationOverrides/Private/LocalizationOverridesSubsystem.cpp) | 运行时加载 · Polyglot |
-| [`LocalizationOverridesGenerator.cpp`](LocalizationOverrides/Source/LocalizationOverrides/Private/LocalizationOverridesGenerator.cpp) | JSON 生成 |
-| [`LocalizationOverrides.Build.cs`](LocalizationOverrides/Source/LocalizationOverrides/LocalizationOverrides.Build.cs) | Build 校验 · staging |
-| [`Program.cs`](Tools/LocalizationOverrideEditor/Program.cs) | 桌面工具 |
 
 ---
 
