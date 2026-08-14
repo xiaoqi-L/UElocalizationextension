@@ -8,7 +8,7 @@
 
 <br>
 
-[![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.7-0E1128?style=for-the-badge&logo=unrealengine&logoColor=white)](LocalizationOverrides/LocalizationOverrides.uplugin)
+[![Unreal Engine](https://img.shields.io/badge/UE5-0E1128?style=for-the-badge&logo=unrealengine&logoColor=white)](LocalizationOverrides/LocalizationOverrides.uplugin)
 [![Platform](https://img.shields.io/badge/Platform-Win64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](LocalizationOverrides/LocalizationOverrides.uplugin)
 [![Plugin](https://img.shields.io/badge/Plugin-v1.1.0-646CFF?style=for-the-badge)](LocalizationOverrides/LocalizationOverrides.uplugin)
 [![.NET](https://img.shields.io/badge/.NET-9-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](Tools/LocalizationOverrideEditor/)
@@ -19,8 +19,7 @@
 [安装](#安装与启用) ·
 [JSON 规范](#json-规范) ·
 [插件 API](#localizationoverrides-插件) ·
-[桌面工具](#uelocalizationtool-桌面工具) ·
-[FAQ](#常见问题)
+[桌面工具](#uelocalizationtool-桌面工具)
 
 </div>
 
@@ -77,7 +76,6 @@
 - [LocalizationOverrides 插件](#localizationoverrides-插件)
 - [UELocalizationTool 桌面工具](#uelocalizationtool-桌面工具)
 - [UE 原生资产本地化](#ue-原生资产本地化)
-- [常见问题](#常见问题)
 - [日志与调试](#日志与调试)
 - [版本升级](#版本升级)
 - [功能边界速查](#功能边界速查)
@@ -105,7 +103,7 @@
 
 | 项目 | 要求 |
 |------|------|
-| Unreal Engine | 5.x（当前验证 [**5.7.0**](LocalizationOverrides/LocalizationOverrides.uplugin)） |
+| Unreal Engine | UE5（当前验证 [**5.7.0**](LocalizationOverrides/LocalizationOverrides.uplugin)） |
 | 平台 | **Win64** |
 | 文本类型 | `FText` / 可本地化 UMG |
 | 前置 | 已配置 UE Localization Dashboard |
@@ -123,10 +121,6 @@ UElocalizationextension/
 │   └── Source/
 │       ├── LocalizationOverrides/      # Runtime
 │       └── LocalizationOverridesEditor/
-├── Tools/
-│   └── LocalizationOverrideEditor/     # C# WinForms 源码
-│       └── publish/
-│           └── UELocalizationTool.exe  # 预编译工具 (~108 MB)
 └── README.md
 ```
 
@@ -447,7 +441,9 @@ dotnet publish Tools\LocalizationOverrideEditor\LocalizationOverrideEditor.cspro
 3. 编辑翻译 → **保存**
 4. 若后续执行 UE Generate，确认合并结果
 
-**界面：** 中/英切换 · 亮/暗主题 · 偏好存 `ui-settings.json`
+**界面：** 中/英切换 · 亮/暗主题
+
+> **设置持久化：** 工具的界面语言、主题、上次打开目录等属性会保存到与 `UELocalizationTool.exe` 同目录下的 `ui-settings.json` 中；修改任一属性后该文件会自动创建或更新。若该目录不可写，则仅本次会话生效。
 
 > 错误对话框仍为中文；仅界面 chrome 与状态栏双语。
 
@@ -465,56 +461,6 @@ Content/L10N/en/Mesh/SM_UI.uasset  ← 英语变体
 | 打包后修改 | 支持 | 不支持 |
 | 切换 culture | 即时（Polyglot） | 需重载 / 重启 |
 | 修改方式 | 编辑 EXE 旁 JSON | 改 UE 项目并重 Cook |
-
----
-
-## 常见问题
-
-<details>
-<summary><b>Generate 提示找不到 .manifest</b></summary>
-
-先在 UE 本地化控制板执行文本收集，确保 `Config/Localization/` 存在 manifest / archive。
-
-</details>
-
-<details>
-<summary><b>新增 culture 后翻译不显示</b></summary>
-
-1. `languages.json.cultures` 已包含该 culture
-2. `Game.json.translations` 有非空值
-3. 修改的是当前环境实际读取的 JSON
-4. 编码为 UTF-16 LE BOM
-5. Output Log 无 schema 错误
-
-</details>
-
-<details>
-<summary><b>文本变了，模型/贴图没变</b></summary>
-
-文本由本插件覆盖；资产由 `Content/L10N/<culture>/` 加载。切换 culture 后重启或重载关卡。
-
-</details>
-
-<details>
-<summary><b>打包后出现两个 LocalizationOverrides</b></summary>
-
-正确位置仅 EXE 旁一份。清理旧输出目录与 AutomationTool 缓存后重新 Build。
-
-</details>
-
-<details>
-<summary><b>Generate 会覆盖人工翻译吗？</b></summary>
-
-会从 UE archive 同步，尽量保留无 archive 的手工 culture。建议 Generate 前备份。
-
-</details>
-
-<details>
-<summary><b>工具保存失败</b></summary>
-
-常见原因：文件被占用 · 编码错误 · schema 失败 · 目录只读。见 `UELocalizationTool-startup-error.log`。
-
-</details>
 
 ---
 
