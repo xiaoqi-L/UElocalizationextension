@@ -105,7 +105,7 @@
 | 文本类型 | `FText` / 可本地化 UMG |
 | 前置 | 已配置 UE Localization Dashboard |
 
-> 插件二进制须与目标 UE 版本匹配；跨版本复用旧 DLL 可能导致加载失败。
+> **版本说明**：本插件基于 **UE 5.7** 开发与验证；应用于其他 UE 版本时请自行编译插件源码（修改 `.uplugin` 的 `EngineVersion` 后重新编译），切勿直接复用旧 DLL。
 
 ---
 
